@@ -1,0 +1,190 @@
+{
+  "index": [
+    {
+      "name": "贾宝玉",
+      "total": 717,
+      "picked": 80
+    },
+    {
+      "name": "王熙凤",
+      "total": 411,
+      "picked": 80
+    },
+    {
+      "name": "贾母",
+      "total": 327,
+      "picked": 40
+    },
+    {
+      "name": "林黛玉",
+      "total": 283,
+      "picked": 80
+    },
+    {
+      "name": "花袭人",
+      "total": 246,
+      "picked": 40
+    },
+    {
+      "name": "薛宝钗",
+      "total": 228,
+      "picked": 80
+    },
+    {
+      "name": "贾政",
+      "total": 207,
+      "picked": 40
+    },
+    {
+      "name": "王夫人",
+      "total": 163,
+      "picked": 40
+    },
+    {
+      "name": "贾琏",
+      "total": 138,
+      "picked": 40
+    },
+    {
+      "name": "史湘云",
+      "total": 132,
+      "picked": 40
+    },
+    {
+      "name": "平儿",
+      "total": 131,
+      "picked": 40
+    },
+    {
+      "name": "贾探春",
+      "total": 128,
+      "picked": 40
+    },
+    {
+      "name": "李纨",
+      "total": 97,
+      "picked": 40
+    },
+    {
+      "name": "鸳鸯",
+      "total": 89,
+      "picked": 40
+    },
+    {
+      "name": "薛姨妈",
+      "total": 83,
+      "picked": 40
+    },
+    {
+      "name": "紫鹃",
+      "total": 71,
+      "picked": 40
+    },
+    {
+      "name": "尤氏",
+      "total": 69,
+      "picked": 37
+    },
+    {
+      "name": "刘姥姥",
+      "total": 67,
+      "picked": 28
+    },
+    {
+      "name": "晴雯",
+      "total": 66,
+      "picked": 40
+    },
+    {
+      "name": "贾珍",
+      "total": 57,
+      "picked": 38
+    },
+    {
+      "name": "麝月",
+      "total": 52,
+      "picked": 40
+    },
+    {
+      "name": "薛蟠",
+      "total": 41,
+      "picked": 31
+    },
+    {
+      "name": "贾惜春",
+      "total": 38,
+      "picked": 31
+    },
+    {
+      "name": "周瑞家的",
+      "total": 33,
+      "picked": 24
+    },
+    {
+      "name": "妙玉",
+      "total": 30,
+      "picked": 20
+    },
+    {
+      "name": "香菱",
+      "total": 30,
+      "picked": 17
+    },
+    {
+      "name": "贾雨村",
+      "total": 25,
+      "picked": 17
+    },
+    {
+      "name": "邢夫人",
+      "total": 25,
+      "picked": 24
+    },
+    {
+      "name": "贾迎春",
+      "total": 19,
+      "picked": 16
+    },
+    {
+      "name": "秋纹",
+      "total": 17,
+      "picked": 15
+    },
+    {
+      "name": "甄士隐",
+      "total": 14,
+      "picked": 7
+    },
+    {
+      "name": "芳官",
+      "total": 14,
+      "picked": 12
+    },
+    {
+      "name": "赵姨娘",
+      "total": 13,
+      "picked": 12
+    },
+    {
+      "name": "贾环",
+      "total": 12,
+      "picked": 12
+    },
+    {
+      "name": "秦可卿",
+      "total": 11,
+      "picked": 11
+    },
+    {
+      "name": "警幻仙姑",
+      "total": 9,
+      "picked": 4
+    },
+    {
+      "name": "司棋",
+      "total": 1,
+      "picked": 1
+    }
+  ],
+  "rule": "forward-only NAME+verb+quote"
+}

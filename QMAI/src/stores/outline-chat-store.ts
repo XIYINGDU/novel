@@ -1,0 +1,477 @@
+import { create } from "zustand"
+import { readFile, writeFile, createDirectory } from "@/commands/fs"
+import { normalizePath } from "@/lib/path-utils"
+import type { AgentRunRecord } from "@/lib/agent/types"
+import type { ReferenceToken } from "@/lib/reference/types"
+import type { ContextHubSnapshotRef, SessionContextSummary } from "@/lib/context-hub/types"
+import {
+  isLegacySessionContextSummary,
+  normalizeSessionContextSummary,
+} from "@/lib/context-hub/session-summary"
+import {
+  normalizeContextUsageSnapshot,
+  type ContextUsageSnapshot,
+} from "@/lib/context-usage"
+import { useWikiStore } from "@/stores/wiki-store"
+import type { IntentClarityResult } from "@/lib/novel/outline-intent-clarity"
+import type { NextStepRecommendation } from "@/lib/novel/outline-next-step"
+import { isNovelGenerationRequestPackage, type NovelGenerationRequestPackage } from "@/lib/novel/novel-generation-request-package"
+import type { CharacterAgentResult } from "@/lib/novel/character-multi-agent"
+import {
+  canStartConversationRun as canStartRun,
+  failConversationRun as createFailedRunState,
+  finishConversationRun as createFinishedRunState,
+  normalizeLoadedRunStates,
+  stopConversationRun as createStoppedRunState,
+  type ConversationRunStates,
+} from "@/lib/conversation-run-state"
+
+export type OutlineMultiAgentStatus =
+  | "planning"
+  | "running"
+  | "merging"
+  | "fallback"
+  | "done"
+  | "error"
+
+export type OutlineMultiAgentStepStatus =
+  | "pending"
+  | "waiting"
+  | "retrying"
+  | "running"
+  | "done"
+  | "error"
+  | "skipped"
+
+export interface OutlineMultiAgentItemState {
+  id: string
+  name: string
+  kind: string
+  skillNames: string[]
+  taskPrompt: string
+  dimension?: string
+  dependencies?: string[]
+  priority?: number
+  finalReview?: boolean
+  retryCount?: number
+  status: OutlineMultiAgentStepStatus
+  summary?: string
+  error?: string
+  startedAt?: number
+  finishedAt?: number
+}
+
+export interface OutlineMultiAgentRunState {
+  mode: "multi-agent" | "single-agent-fallback"
+  status: OutlineMultiAgentStatus
+  maxConcurrency: number
+  agents: OutlineMultiAgentItemState[]
+  merge?: {
+    status: OutlineMultiAgentStepStatus
+    summary?: string
+    error?: string
+    startedAt?: number
+    finishedAt?: number
+  }
+  fallbackReason?: string
+  failureDetails?: string[]
+  /** 当多 Agent 部分失败时，存储可恢复的 plan 和成功结果，用于"继续未完成的任务" */
+  resumeablePlan?: {
+    plan: unknown[]
+    completedResults: unknown[]
+    failedAgentIds: string[]
+  }
+}
+
+export interface OutlineChatMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  /** 发给模型的完整内容；与用户界面展示内容分离。 */
+  modelContent?: string
+  /** internal 消息参与模型历史，但不渲染为用户气泡。 */
+  visibility?: "visible" | "internal"
+  sources?: string[]
+  agentToolCalls?: AgentRunRecord["toolCalls"]
+  multiAgentRun?: OutlineMultiAgentRunState
+  characterMultiAgentResults?: CharacterAgentResult[]
+  showThinkingProcess?: boolean
+  isAgentRunning?: boolean
+  attachedReferences?: ReferenceToken[]
+  intentPhase?: "intent_analysis" | "generation" | "waiting_user_input"
+  intentClarityResult?: IntentClarityResult | null
+  intentProtocolError?: string
+  nextStepRecommendation?: NextStepRecommendation | null
+  novelGenerationRequest?: NovelGenerationRequestPackage
+  contextHubSnapshot?: ContextHubSnapshotRef
+  /** Thinking-model chain-of-thought; must be replayed on subsequent turns. */
+  reasoning_content?: string
+}
+
+export interface OutlineChatConversation {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  messages: OutlineChatMessage[]
+  modelId?: string
+  contextSummary?: SessionContextSummary
+  lastContextUsage?: ContextUsageSnapshot
+}
+
+interface OutlineChatState {
+  conversations: OutlineChatConversation[]
+  activeConversationId: string | null
+  /** 仅承载生成过程中的运行状态提示文本；正文内容始终直接写入消息，不经过这里。 */
+  streamingContents: Record<string, string>
+  runStates: ConversationRunStates
+  loaded: boolean
+  pendingReferenceTokens: ReferenceToken[]
+
+  createConversation: () => string
+  setActiveConversation: (id: string | null) => void
+  addMessage: (convId: string, msg: OutlineChatMessage) => void
+  replaceLastAssistant: (convId: string, content: string, sources?: string[]) => void
+  removeLastMessage: (convId: string) => void
+  deleteConversation: (id: string) => void
+  setConversationModel: (id: string, modelId: string) => void
+  setConversationContextSummary: (id: string, contextSummary: SessionContextSummary) => void
+  setConversationContextUsage: (id: string, lastContextUsage: ContextUsageSnapshot | undefined) => void
+  setStreamingContent: (conversationId: string, content: string) => void
+  clearStreamingContent: (conversationId: string) => void
+  getStreamingContent: (conversationId: string) => string
+  startConversationRun: (id: string, runId: string) => boolean
+  finishConversationRun: (id: string, activeId: string | null, runId: string) => void
+  failConversationRun: (id: string, error: string, runId: string) => void
+  stopConversationRun: (id: string, runId: string) => void
+  canStartConversationRun: (id: string) => boolean
+  enqueueReferenceTokens: (tokens: ReferenceToken[]) => void
+  consumePendingReferenceTokens: () => ReferenceToken[]
+  loadFromDisk: () => Promise<void>
+  saveToDisk: () => Promise<void>
+}
+
+function getStoragePath(): string | null {
+  const project = useWikiStore.getState().project
+  if (!project?.path) return null
+  return `${normalizePath(project.path)}/.qmai/outline-chats.json`
+}
+
+export const useOutlineChatStore = create<OutlineChatState>((set, get) => {
+  const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  let loadGeneration = 0
+
+  const scheduleSave = () => {
+    const path = getStoragePath()
+    if (!path) return
+    const state = get()
+    const data = {
+      conversations: state.conversations,
+      activeConversationId: state.activeConversationId,
+      runStates: state.runStates,
+    }
+    const existingTimer = saveTimers.get(path)
+    if (existingTimer) clearTimeout(existingTimer)
+    const timer = setTimeout(() => {
+      saveTimers.delete(path)
+      void doSave(path, data)
+    }, 500)
+    saveTimers.set(path, timer)
+  }
+
+  const doSave = async (path = getStoragePath(), data?: {
+    conversations: OutlineChatConversation[]
+    activeConversationId: string | null
+    runStates: ConversationRunStates
+  }) => {
+    if (!path) return
+    const state = get()
+    const snapshot = data ?? {
+      conversations: state.conversations,
+      activeConversationId: state.activeConversationId,
+      runStates: state.runStates,
+    }
+    try {
+      const dir = path.replace(/[/\\][^/\\]+$/, "")
+      await createDirectory(dir)
+      await writeFile(path, JSON.stringify(snapshot, null, 2))
+      const projectPath = path.slice(0, -"/.qmai/outline-chats.json".length)
+      const referencedIds = new Set<string>()
+      for (const conversation of snapshot.conversations) {
+        for (const message of conversation.messages) {
+          if (message.contextHubSnapshot?.surface === "ai-outline") {
+            referencedIds.add(message.contextHubSnapshot.id)
+          }
+        }
+      }
+      try {
+        const { getContextHub } = await import("@/lib/context-hub/context-hub")
+        await getContextHub(projectPath).pruneSnapshots("ai-outline", [...referencedIds])
+      } catch {
+        // Snapshot cleanup is optional and must not make outline history saving fail.
+      }
+    } catch {
+    }
+  }
+
+  return {
+  conversations: [],
+  activeConversationId: null,
+  streamingContents: {},
+  runStates: {},
+  loaded: false,
+  pendingReferenceTokens: [],
+
+  createConversation: () => {
+    const id = crypto.randomUUID()
+    const now = Date.now()
+    const conv: OutlineChatConversation = {
+      id,
+      title: `大纲对话 ${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`,
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+    }
+    set((s) => ({
+      conversations: [conv, ...s.conversations],
+      activeConversationId: id,
+    }))
+    scheduleSave()
+    return id
+  },
+
+  setActiveConversation: (id) => {
+    set((state) => {
+      const runState = id ? state.runStates[id] : undefined
+      return {
+        activeConversationId: id,
+        runStates: id && runState?.status === "completed_unread"
+          ? { ...state.runStates, [id]: createStoppedRunState() }
+          : state.runStates,
+      }
+    })
+    scheduleSave()
+  },
+
+  addMessage: (convId, msg) => {
+    const now = Date.now()
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === convId ? { ...c, messages: [...c.messages, msg], updatedAt: now } : c
+      ),
+    }))
+    scheduleSave()
+  },
+
+  replaceLastAssistant: (convId, content, sources) => {
+    const now = Date.now()
+    set((s) => ({
+      conversations: s.conversations.map((c) => {
+        if (c.id !== convId) return c
+        const msgs = [...c.messages]
+        const lastIdx = msgs.length - 1
+        if (lastIdx >= 0 && msgs[lastIdx].role === "assistant") {
+          msgs[lastIdx] = { ...msgs[lastIdx], content, sources }
+        } else {
+          msgs.push({ id: crypto.randomUUID(), role: "assistant", content, sources })
+        }
+        const firstUser = msgs.find((m) => m.role === "user")
+        const title = firstUser ? firstUser.content.slice(0, 20) + (firstUser.content.length > 20 ? "..." : "") : c.title
+        return { ...c, messages: msgs, title, updatedAt: now }
+      }),
+    }))
+    scheduleSave()
+  },
+
+  removeLastMessage: (convId) => {
+    const now = Date.now()
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === convId ? { ...c, messages: c.messages.slice(0, -1), updatedAt: now } : c
+      ),
+    }))
+    scheduleSave()
+  },
+
+  deleteConversation: (id) => {
+    set((s) => {
+      const { [id]: _stream, ...streamingContents } = s.streamingContents
+      const { [id]: _run, ...runStates } = s.runStates
+      return {
+        conversations: s.conversations.filter((c) => c.id !== id),
+        activeConversationId: s.activeConversationId === id ? null : s.activeConversationId,
+        streamingContents,
+        runStates,
+      }
+    })
+    scheduleSave()
+  },
+
+  setConversationModel: (id, modelId) => {
+    const now = Date.now()
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id ? { ...c, modelId, updatedAt: now } : c
+      ),
+    }))
+    scheduleSave()
+  },
+
+  setConversationContextSummary: (id, contextSummary) => {
+    const now = Date.now()
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id ? { ...c, contextSummary, updatedAt: now } : c
+      ),
+    }))
+    scheduleSave()
+  },
+
+  setConversationContextUsage: (id, lastContextUsage) => {
+    const now = Date.now()
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id ? { ...c, lastContextUsage, updatedAt: now } : c
+      ),
+    }))
+    scheduleSave()
+  },
+
+  setStreamingContent: (conversationId, content) => set((state) => ({
+    streamingContents: { ...state.streamingContents, [conversationId]: content },
+  })),
+  clearStreamingContent: (conversationId) => set((state) => {
+    const { [conversationId]: _, ...streamingContents } = state.streamingContents
+    return { streamingContents }
+  }),
+  getStreamingContent: (conversationId) => get().streamingContents[conversationId] ?? "",
+  startConversationRun: (id, runId) => {
+    if (!get().conversations.some((conversation) => conversation.id === id)) return false
+    if (!canStartRun(get().runStates, id)) return false
+    set((state) => ({ runStates: { ...state.runStates, [id]: { status: "running", updatedAt: Date.now(), runId } } }))
+    scheduleSave()
+    return true
+  },
+  finishConversationRun: (id, activeId, runId) => {
+    set((state) => {
+      const current = state.runStates[id]
+      if (!state.conversations.some((conversation) => conversation.id === id)) return state
+      if (current?.status !== "running" || current.runId !== runId) return state
+      return { runStates: { ...state.runStates, [id]: createFinishedRunState(id, activeId) } }
+    })
+    scheduleSave()
+  },
+  failConversationRun: (id, error, runId) => {
+    set((state) => {
+      const current = state.runStates[id]
+      if (!state.conversations.some((conversation) => conversation.id === id)) return state
+      if (current?.status !== "running" || current.runId !== runId) return state
+      return { runStates: { ...state.runStates, [id]: createFailedRunState(error) } }
+    })
+    scheduleSave()
+  },
+  stopConversationRun: (id, runId) => {
+    set((state) => {
+      const current = state.runStates[id]
+      if (current?.status !== "running" || current.runId !== runId) return state
+      return { runStates: { ...state.runStates, [id]: createStoppedRunState() } }
+    })
+    scheduleSave()
+  },
+  canStartConversationRun: (id) => get().conversations.some((conversation) => conversation.id === id) && canStartRun(get().runStates, id),
+  enqueueReferenceTokens: (tokens) => {
+    if (tokens.length === 0) return
+    set((state) => ({
+      pendingReferenceTokens: [...state.pendingReferenceTokens, ...tokens],
+    }))
+  },
+  consumePendingReferenceTokens: () => {
+    const tokens = get().pendingReferenceTokens
+    set({ pendingReferenceTokens: [] })
+    return tokens
+  },
+
+  loadFromDisk: async () => {
+    const generation = ++loadGeneration
+    const path = getStoragePath()
+    if (!path) {
+      set({
+        conversations: [], activeConversationId: null, runStates: {}, streamingContents: {},
+        pendingReferenceTokens: [], loaded: true,
+      })
+      return
+    }
+    try {
+      const content = await readFile(path)
+      if (generation !== loadGeneration || getStoragePath() !== path) return
+      const data = JSON.parse(content) as {
+        conversations: OutlineChatConversation[]
+        activeConversationId: string | null
+        runStates?: ConversationRunStates
+      }
+      const hasLegacyContextSummary = (data.conversations ?? []).some((conversation) => (
+        isLegacySessionContextSummary(conversation.contextSummary)
+      ))
+      const conversations = (data.conversations ?? []).map((conversation) => ({
+        ...conversation,
+        contextSummary: normalizeSessionContextSummary(conversation.contextSummary),
+        lastContextUsage: normalizeContextUsageSnapshot(conversation.lastContextUsage),
+        updatedAt: conversation.updatedAt ?? conversation.createdAt ?? Date.now(),
+        messages: conversation.messages.map((message) => ({
+          ...message,
+          novelGenerationRequest: isNovelGenerationRequestPackage(message.novelGenerationRequest)
+            ? message.novelGenerationRequest
+            : undefined,
+          // 验证 resumeablePlan 数据完整性，清除结构不完整的续传数据
+          multiAgentRun: message.multiAgentRun
+            ? {
+                ...message.multiAgentRun,
+                resumeablePlan: message.multiAgentRun.resumeablePlan
+                  && Array.isArray(message.multiAgentRun.resumeablePlan.plan)
+                  && Array.isArray(message.multiAgentRun.resumeablePlan.completedResults)
+                  && Array.isArray(message.multiAgentRun.resumeablePlan.failedAgentIds)
+                  && message.multiAgentRun.resumeablePlan.failedAgentIds.length > 0
+                  ? message.multiAgentRun.resumeablePlan
+                  : undefined,
+              }
+            : message.multiAgentRun,
+        })),
+      }))
+      const conversationIds = new Set(conversations.map((conversation) => conversation.id))
+      const runStates = Object.fromEntries(
+        Object.entries(normalizeLoadedRunStates(data.runStates)).filter(([id]) => conversationIds.has(id)),
+      )
+      const activeConversationId = data.activeConversationId && conversationIds.has(data.activeConversationId)
+        ? data.activeConversationId
+        : null
+      set({
+        conversations,
+        activeConversationId,
+        runStates,
+        streamingContents: {},
+        pendingReferenceTokens: [],
+        loaded: true,
+      })
+      if (hasLegacyContextSummary && generation === loadGeneration && getStoragePath() === path) {
+        await doSave(path, { conversations, activeConversationId, runStates })
+      }
+    } catch {
+      if (generation !== loadGeneration || getStoragePath() !== path) return
+      set({
+        conversations: [], activeConversationId: null, runStates: {}, streamingContents: {},
+        pendingReferenceTokens: [], loaded: true,
+      })
+    }
+  },
+
+  saveToDisk: async () => {
+    const path = getStoragePath()
+    if (!path) return
+    const timer = saveTimers.get(path)
+    if (timer) {
+      clearTimeout(timer)
+      saveTimers.delete(path)
+    }
+    await doSave(path)
+  },
+}})

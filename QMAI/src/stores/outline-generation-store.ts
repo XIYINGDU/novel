@@ -1,0 +1,80 @@
+import { create } from "zustand"
+
+export type OutlineTaskStatus = "ingesting" | "done" | "error"
+export type OutlineTaskKind = "ingest"
+
+export interface OutlineGenerationTask {
+  id: string
+  projectPath: string
+  kind: OutlineTaskKind
+  outlinePath: string | null
+  status: OutlineTaskStatus
+  message: string
+  error: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+interface CreateOutlineTaskInput {
+  projectPath: string
+  kind?: OutlineTaskKind
+  outlinePath?: string | null
+  status?: OutlineTaskStatus
+  message?: string
+  error?: string | null
+}
+
+export interface OutlineGenerationState {
+  tasks: OutlineGenerationTask[]
+  panelOpen: boolean
+  setPanelOpen: (open: boolean) => void
+  createTask: (input: CreateOutlineTaskInput) => string
+  updateTask: (taskId: string, patch: Partial<OutlineGenerationTask>) => void
+  getLatestTaskByProject: (projectPath: string) => OutlineGenerationTask | null
+  removeTask: (taskId: string) => void
+}
+
+let counter = 0
+
+export const useOutlineGenerationStore = create<OutlineGenerationState>((set) => ({
+  tasks: [],
+  panelOpen: true,
+  setPanelOpen: (open) => set({ panelOpen: open }),
+  createTask: (input) => {
+    const id = `outline-task-${++counter}`
+    const now = Date.now()
+    set((state) => ({
+      tasks: [
+        {
+          id,
+          projectPath: input.projectPath,
+          kind: input.kind ?? "ingest",
+          outlinePath: input.outlinePath ?? null,
+          status: input.status ?? "ingesting",
+          message: input.message ?? "",
+          error: input.error ?? null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        ...state.tasks,
+      ],
+    }))
+    return id
+  },
+  updateTask: (taskId, patch) => set((state) => ({
+    tasks: state.tasks.map((task) =>
+      task.id === taskId
+        ? { ...task, ...patch, updatedAt: Date.now() }
+        : task,
+    ),
+  })),
+  getLatestTaskByProject: (projectPath: string): OutlineGenerationTask | null => {
+    const tasks: OutlineGenerationTask[] = useOutlineGenerationStore.getState().tasks
+      .filter((task: OutlineGenerationTask) => task.projectPath === projectPath)
+      .sort((a: OutlineGenerationTask, b: OutlineGenerationTask) => b.updatedAt - a.updatedAt)
+    return tasks[0] ?? null
+  },
+  removeTask: (taskId: string) => set((state) => ({
+    tasks: state.tasks.filter((task) => task.id !== taskId),
+  })),
+}))

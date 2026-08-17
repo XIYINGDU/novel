@@ -1,0 +1,275 @@
+{
+  "index": [
+    {
+      "name": "芮小丹",
+      "total": 396,
+      "picked": 80
+    },
+    {
+      "name": "丁元英",
+      "total": 319,
+      "picked": 80
+    },
+    {
+      "name": "欧阳雪",
+      "total": 151,
+      "picked": 40
+    },
+    {
+      "name": "肖亚文",
+      "total": 130,
+      "picked": 37
+    },
+    {
+      "name": "叶晓明",
+      "total": 114,
+      "picked": 40
+    },
+    {
+      "name": "冯世杰",
+      "total": 77,
+      "picked": 36
+    },
+    {
+      "name": "刘冰",
+      "total": 57,
+      "picked": 35
+    },
+    {
+      "name": "韩楚风",
+      "total": 41,
+      "picked": 21
+    },
+    {
+      "name": "林雨峰",
+      "total": 28,
+      "picked": 15
+    },
+    {
+      "name": "沈楠",
+      "total": 28,
+      "picked": 8
+    },
+    {
+      "name": "郑建时",
+      "total": 24,
+      "picked": 10
+    },
+    {
+      "name": "芮伟峰",
+      "total": 23,
+      "picked": 10
+    },
+    {
+      "name": "张慧敏",
+      "total": 21,
+      "picked": 9
+    },
+    {
+      "name": "赵青",
+      "total": 16,
+      "picked": 13
+    },
+    {
+      "name": "蒋汉臣",
+      "total": 15,
+      "picked": 10
+    },
+    {
+      "name": "詹妮",
+      "total": 14,
+      "picked": 8
+    },
+    {
+      "name": "于志伟",
+      "total": 13,
+      "picked": 8
+    },
+    {
+      "name": "曾华",
+      "total": 12,
+      "picked": 4
+    },
+    {
+      "name": "王明阳",
+      "total": 10,
+      "picked": 6
+    },
+    {
+      "name": "智玄",
+      "total": 10,
+      "picked": 4
+    },
+    {
+      "name": "赵忠涛",
+      "total": 10,
+      "picked": 4
+    },
+    {
+      "name": "马经理",
+      "total": 8,
+      "picked": 6
+    },
+    {
+      "name": "周剑华",
+      "total": 8,
+      "picked": 4
+    },
+    {
+      "name": "格贝森",
+      "total": 7,
+      "picked": 4
+    },
+    {
+      "name": "苏逸文",
+      "total": 7,
+      "picked": 4
+    },
+    {
+      "name": "丁秋红",
+      "total": 6,
+      "picked": 4
+    },
+    {
+      "name": "王福田",
+      "total": 6,
+      "picked": 6
+    },
+    {
+      "name": "陈茹",
+      "total": 5,
+      "picked": 4
+    },
+    {
+      "name": "赵国强",
+      "total": 5,
+      "picked": 5
+    },
+    {
+      "name": "刘大爷",
+      "total": 5,
+      "picked": 5
+    },
+    {
+      "name": "阎希成",
+      "total": 5,
+      "picked": 4
+    },
+    {
+      "name": "审判长",
+      "total": 5,
+      "picked": 4
+    },
+    {
+      "name": "小赵",
+      "total": 4,
+      "picked": 4
+    },
+    {
+      "name": "小杨",
+      "total": 4,
+      "picked": 4
+    },
+    {
+      "name": "吴志明",
+      "total": 3,
+      "picked": 3
+    },
+    {
+      "name": "张静",
+      "total": 3,
+      "picked": 3
+    },
+    {
+      "name": "楚婕",
+      "total": 3,
+      "picked": 3
+    },
+    {
+      "name": "黄文贤",
+      "total": 3,
+      "picked": 3
+    },
+    {
+      "name": "黄福海",
+      "total": 3,
+      "picked": 3
+    },
+    {
+      "name": "格尔斯曼",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "杜小辉",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "冯母",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "周国正",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "刘牧师",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "赵云哲",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "李志江",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "戚伯",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "徐处长",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "王队长",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "吴建军",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "谢辉",
+      "total": 1,
+      "picked": 1
+    },
+    {
+      "name": "韦天逸",
+      "total": 1,
+      "picked": 1
+    },
+    {
+      "name": "李铁军",
+      "total": 1,
+      "picked": 1
+    },
+    {
+      "name": "赵丽静",
+      "total": 1,
+      "picked": 1
+    }
+  ],
+  "rule": "forward-only NAME+verb+quote"
+}

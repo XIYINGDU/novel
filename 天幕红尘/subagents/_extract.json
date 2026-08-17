@@ -1,0 +1,160 @@
+{
+  "index": [
+    {
+      "name": "叶子农",
+      "total": 557,
+      "picked": 76
+    },
+    {
+      "name": "方迪",
+      "total": 335,
+      "picked": 68
+    },
+    {
+      "name": "老九",
+      "total": 333,
+      "picked": 40
+    },
+    {
+      "name": "戴梦岩",
+      "total": 322,
+      "picked": 73
+    },
+    {
+      "name": "梁士乔",
+      "total": 107,
+      "picked": 40
+    },
+    {
+      "name": "布兰迪",
+      "total": 73,
+      "picked": 22
+    },
+    {
+      "name": "张志诚",
+      "total": 54,
+      "picked": 16
+    },
+    {
+      "name": "奥布莱恩",
+      "total": 49,
+      "picked": 17
+    },
+    {
+      "name": "孙瑶",
+      "total": 41,
+      "picked": 16
+    },
+    {
+      "name": "沈彪",
+      "total": 32,
+      "picked": 11
+    },
+    {
+      "name": "黄书宁",
+      "total": 29,
+      "picked": 11
+    },
+    {
+      "name": "林雪红",
+      "total": 28,
+      "picked": 14
+    },
+    {
+      "name": "乔治",
+      "total": 26,
+      "picked": 14
+    },
+    {
+      "name": "雷卫东",
+      "total": 25,
+      "picked": 12
+    },
+    {
+      "name": "许亚夫",
+      "total": 22,
+      "picked": 13
+    },
+    {
+      "name": "董丽",
+      "total": 17,
+      "picked": 5
+    },
+    {
+      "name": "凯勒",
+      "total": 15,
+      "picked": 4
+    },
+    {
+      "name": "沃尔斯",
+      "total": 14,
+      "picked": 4
+    },
+    {
+      "name": "秦处长",
+      "total": 14,
+      "picked": 8
+    },
+    {
+      "name": "张娟",
+      "total": 13,
+      "picked": 8
+    },
+    {
+      "name": "方父",
+      "total": 13,
+      "picked": 4
+    },
+    {
+      "name": "张立波",
+      "total": 10,
+      "picked": 4
+    },
+    {
+      "name": "石天佑",
+      "total": 10,
+      "picked": 7
+    },
+    {
+      "name": "沈处长",
+      "total": 8,
+      "picked": 4
+    },
+    {
+      "name": "周富均",
+      "total": 8,
+      "picked": 4
+    },
+    {
+      "name": "耿大爷",
+      "total": 8,
+      "picked": 5
+    },
+    {
+      "name": "赵军",
+      "total": 7,
+      "picked": 5
+    },
+    {
+      "name": "钱静辉",
+      "total": 6,
+      "picked": 5
+    },
+    {
+      "name": "普林斯",
+      "total": 6,
+      "picked": 6
+    },
+    {
+      "name": "库格列夫",
+      "total": 2,
+      "picked": 2
+    },
+    {
+      "name": "戴维",
+      "total": 2,
+      "picked": 2
+    }
+  ],
+  "rule": "forward-only NAME+verb+quote"
+}

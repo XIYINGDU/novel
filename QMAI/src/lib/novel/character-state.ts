@@ -1,0 +1,97 @@
+import { readFile, writeFile, createDirectory } from "@/commands/fs"
+import { normalizePath } from "@/lib/path-utils"
+import type { StateChangeRecord } from "./tracking-types"
+
+export interface CharacterState {
+  characterName: string
+  currentLocation: string
+  status: string
+  equipment: string[]
+  abilities: string[]
+  relationships: Record<string, string>
+  lastUpdatedChapter: number
+  lastUpdatedAt: string
+  /** 公众形象 */
+  publicImage?: string
+  /** 待回收伏笔ID列表 */
+  pendingForeshadowing?: string[]
+  /** 状态变更记录（最近10条） */
+  stateChangeHistory?: StateChangeRecord[]
+}
+
+export interface CharacterStateStore {
+  characters: CharacterState[]
+  lastUpdated: string
+}
+
+export function createEmptyCharacterStateStore(): CharacterStateStore {
+  return { characters: [], lastUpdated: new Date().toISOString() }
+}
+
+export async function saveCharacterStates(
+  projectPath: string,
+  store: CharacterStateStore,
+): Promise<void> {
+  const pp = normalizePath(projectPath)
+  await createDirectory(`${pp}/.novel`)
+  await writeFile(
+    `${pp}/.novel/character-states.json`,
+    JSON.stringify(store, null, 2),
+  )
+}
+
+export async function loadCharacterStates(
+  projectPath: string,
+): Promise<CharacterStateStore> {
+  const pp = normalizePath(projectPath)
+  try {
+    const raw = await readFile(`${pp}/.novel/character-states.json`)
+    return JSON.parse(raw)
+  } catch {
+    return createEmptyCharacterStateStore()
+  }
+}
+
+export function characterStatesToContextText(store: CharacterStateStore): string {
+  if (store.characters.length === 0) return ""
+  return store.characters
+    .map(
+      (c) =>
+        `- ${c.characterName}：位于${c.currentLocation}，状态：${c.status}，装备：${c.equipment.join("、") || "无"}，能力：${c.abilities.join("、") || "无"}`,
+    )
+    .join("\n")
+}
+
+/**
+ * 添加角色状态变更记录，自动维护最近10条历史
+ */
+export function addCharacterStateChange(
+  character: CharacterState,
+  change: string,
+): void {
+  const record: StateChangeRecord = {
+    chapter: character.lastUpdatedChapter,
+    change,
+    timestamp: new Date().toISOString(),
+  }
+  if (!character.stateChangeHistory) {
+    character.stateChangeHistory = []
+  }
+  character.stateChangeHistory.push(record)
+  // 只保留最近10条
+  if (character.stateChangeHistory.length > 10) {
+    character.stateChangeHistory = character.stateChangeHistory.slice(-10)
+  }
+}
+
+/**
+ * 获取单角色一句话状态摘要
+ */
+export function getCharacterBriefForChapter(
+  character: CharacterState,
+): string {
+  const parts: string[] = [`${character.characterName}：${character.status}`]
+  if (character.currentLocation) parts.push(`在${character.currentLocation}`)
+  if (character.publicImage) parts.push(`公众形象：${character.publicImage}`)
+  return parts.join("，")
+}

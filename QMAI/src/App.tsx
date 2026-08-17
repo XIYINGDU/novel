@@ -1,0 +1,500 @@
+import { useState, useEffect } from "react"
+import i18n from "@/i18n"
+import { useWikiStore } from "@/stores/wiki-store"
+import { useReviewStore } from "@/stores/review-store"
+import { isTauri, pickDirectory } from "@/lib/platform"
+import { useChatStore } from "@/stores/chat-store"
+import { useOutlineChatStore } from "@/stores/outline-chat-store"
+import { openProject, fileExists, listDirectory, readFile } from "@/commands/fs"
+import { getLastProject, saveLastProject, loadLlmConfig, loadAiChatModel, loadAiWorkflowMode, loadDefaultLlmModel, loadLanguage, loadEmbeddingConfig, loadProviderConfigs, loadActivePresetId, loadProxyConfig, loadNovelMode, loadNovelConfig, loadRevisionFeedbackWindowConfig, loadTheme, loadMaxHistoryMessages, loadUiFontFamily, loadVisualStyle, saveLlmConfig, loadLastReadChapter, loadMcpConfig, loadSearchApiConfig, loadOutlineWorkflowMode } from "@/lib/project-store"
+import { loadReviewItems, loadChatHistory, saveChatHistory, saveReviewItems } from "@/lib/persist"
+import { initializeAiOutlineModelFromStorage } from "@/lib/ai-outline-model-initialization"
+import { setupAutoSave, teardownAutoSave } from "@/lib/auto-save"
+import { checkForAppUpdate } from "@/lib/app-updater"
+import { initAnalytics } from "@/lib/analytics"
+import { AppLayout } from "@/components/layout/app-layout"
+import { WelcomeScreen } from "@/components/project/welcome-screen"
+import { CreateProjectDialog } from "@/components/project/create-project-dialog"
+import { formatAppTitle } from "@/lib/app-title"
+import { resetProjectState } from "@/lib/reset-project-state"
+import { findLlmPresetById } from "@/components/settings/llm-presets"
+import { resolveConfig } from "@/components/settings/preset-resolver"
+import { toast } from "@/lib/toast"
+import type { WikiProject } from "@/types/wiki"
+import { applyTheme, watchSystemTheme } from "@/lib/theme-utils"
+import { applyUiFontFamily } from "@/lib/font-settings"
+import { applyVisualStyle } from "@/lib/visual-style-settings"
+import { isChapterPathInProject, normalizePath } from "@/lib/path-utils"
+import { countChapterBodyWords } from "@/lib/chapter-word-count"
+import { flattenMdFiles } from "@/lib/novel/chapter-utils"
+import { runUserMemoryMaintenance } from "@/lib/user-memory/maintenance"
+import { initializeProjectContextCache } from "@/lib/context-hub/context-hub"
+
+function App() {
+  const project = useWikiStore((s) => s.project)
+  const setProject = useWikiStore((s) => s.setProject)
+  const setFileTree = useWikiStore((s) => s.setFileTree)
+  const setSelectedFile = useWikiStore((s) => s.setSelectedFile)
+  const setActiveView = useWikiStore((s) => s.setActiveView)
+  const uiFontSizeScale = useWikiStore((s) => s.uiFontSizeScale)
+  const uiFontFamily = useWikiStore((s) => s.uiFontFamily)
+  const visualStyle = useWikiStore((s) => s.visualStyle)
+  const communitySummaryError = useWikiStore((s) => s.communitySummaryError)
+  const setCommunitySummaryError = useWikiStore((s) => s.setCommunitySummaryError)
+  const dataVersion = useWikiStore((s) => s.dataVersion)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [appTitleTotalWordCount, setAppTitleTotalWordCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    runUserMemoryMaintenance()
+  }, [])
+
+  function isCurrentProject(proj: WikiProject): boolean {
+    const current = useWikiStore.getState().project
+    if (!current || current.id !== proj.id) return false
+    return normalizePath(current.path) === normalizePath(proj.path)
+  }
+
+  async function hydrateProjectSideStores(proj: WikiProject): Promise<void> {
+    try {
+      const savedReview = await loadReviewItems(proj.path)
+      if (savedReview.length > 0 && isCurrentProject(proj)) {
+        useReviewStore.getState().setItems(savedReview)
+      }
+    } catch (err) {
+      console.warn("[startup] 加载审查项失败:", err)
+    }
+
+    try {
+      const savedChat = await loadChatHistory(proj.path)
+      if (isCurrentProject(proj)) {
+        useChatStore.getState().setLoadedRunStates(savedChat.runStates)
+        if (savedChat.conversations.length > 0) {
+          useChatStore.getState().setConversations(savedChat.conversations)
+          useChatStore.getState().setMessages(savedChat.messages)
+          const sorted = [...savedChat.conversations].sort((a, b) => b.updatedAt - a.updatedAt)
+          if (sorted[0]) {
+            useChatStore.getState().setActiveConversation(sorted[0].id)
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[startup] 加载聊天历史失败:", err)
+    }
+
+    try {
+      if (!isCurrentProject(proj)) return
+      await useOutlineChatStore.getState().loadFromDisk()
+    } catch (err) {
+      console.warn("[startup] 加载大纲 AI 对话历史失败:", err)
+    }
+  }
+
+  async function hydrateProjectBackgroundServices(proj: WikiProject): Promise<void> {
+    if (!isTauri()) return
+    if (!isCurrentProject(proj)) return
+
+    try {
+      const { restoreQueue } = await import("@/lib/ingest-queue")
+      if (!isCurrentProject(proj)) return
+      await restoreQueue(proj.id, proj.path)
+    } catch (err) {
+      console.error("恢复摄取队列失败:", err)
+    }
+
+    if (!isCurrentProject(proj)) return
+
+    try {
+      const { restoreQueue: restoreDedupQueue } = await import("@/lib/dedup-queue")
+      await restoreDedupQueue(proj.id, proj.path)
+    } catch (err) {
+      console.error("恢复去重队列失败:", err)
+    }
+
+    if (!isCurrentProject(proj)) return
+
+    try {
+      const {
+        restoreForeshadowingCleanupQueue,
+      } = await import("@/lib/foreshadowing-cleanup-queue")
+      await restoreForeshadowingCleanupQueue(proj.id, proj.path)
+    } catch (err) {
+      console.error("恢复伏笔清理队列失败:", err)
+    }
+  }
+
+  async function hydrateDeferredProjectState(proj: WikiProject): Promise<void> {
+    await hydrateProjectBackgroundServices(proj)
+    if (!isCurrentProject(proj)) return
+    await hydrateProjectSideStores(proj)
+    if (!isCurrentProject(proj)) return
+    // v3 新增：加载技能收藏（全局存储，但需 project path 用于 originProjectPath 标记）
+    try {
+      const { useFavoriteSkillStore } = await import("@/stores/favorite-skill-store")
+      await useFavoriteSkillStore.getState().load(proj.path)
+    } catch (err) {
+      console.warn("[startup] 加载技能收藏失败:", err)
+    }
+  }
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${Math.round(uiFontSizeScale * 100)}%`
+  }, [uiFontSizeScale])
+
+  useEffect(() => {
+    applyUiFontFamily(uiFontFamily)
+  }, [uiFontFamily])
+
+  useEffect(() => {
+    applyVisualStyle(visualStyle)
+  }, [visualStyle])
+
+  // 监听社区摘要生成错误，弹窗提示
+  useEffect(() => {
+    if (communitySummaryError) {
+      toast.error(i18n.t("novel.settings.communitySummaryFailed", { message: communitySummaryError }))
+      setCommunitySummaryError(null)
+    }
+  }, [communitySummaryError, setCommunitySummaryError])
+
+  // Set up auto-save once on mount
+  useEffect(() => {
+    setupAutoSave()
+
+    // 注册 Tauri 窗口关闭前保存
+    let unlisten: (() => void) | undefined
+    let isClosing = false // 防止递归关闭
+    if (isTauri()) {
+      import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+        getCurrentWindow().onCloseRequested(async (event) => {
+          // 防止递归：close() 会再次触发 onCloseRequested
+          if (isClosing) return
+          isClosing = true
+
+          // 阻止窗口立即关闭，等待保存完成
+          event.preventDefault()
+
+          // 关闭前执行最终保存，防止丢失最后几秒的数据
+          const project = useWikiStore.getState().project
+          if (project) {
+            const chatState = useChatStore.getState()
+            if (chatState.conversations.length > 0) {
+              await saveChatHistory(
+                project.path,
+                chatState.conversations,
+                chatState.messages,
+                chatState.maxHistoryMessages,
+                chatState.runStates,
+              ).catch((err) => console.error("关闭前保存聊天历史失败:", err))
+            }
+            const reviewState = useReviewStore.getState()
+            if (reviewState.items.length > 0) {
+              await saveReviewItems(project.path, reviewState.items)
+                .catch((err) => console.error("关闭前保存审查项失败:", err))
+            }
+          }
+
+          // 保存完成后手动关闭窗口
+          await getCurrentWindow().close()
+        }).then((fn) => { unlisten = fn })
+      })
+    }
+
+    return () => {
+      teardownAutoSave()
+      unlisten?.()
+    }
+  }, [])
+
+  
+
+  // Auto-open last project on startup
+  useEffect(() => {
+    async function init() {
+      try {
+        // 先加载和应用主题
+        const savedTheme = await loadTheme()
+        const themeToUse = savedTheme ?? "system"
+        useWikiStore.getState().setTheme(themeToUse)
+        applyTheme(themeToUse)
+        const savedVisualStyle = await loadVisualStyle()
+        const visualStyleToUse = savedVisualStyle ?? useWikiStore.getState().visualStyle
+        useWikiStore.getState().setVisualStyle(visualStyleToUse)
+        applyVisualStyle(visualStyleToUse)
+        const savedUiFontFamily = await loadUiFontFamily()
+        if (savedUiFontFamily) {
+          useWikiStore.getState().setUiFontFamily(savedUiFontFamily)
+          applyUiFontFamily(savedUiFontFamily)
+        }
+
+        const savedConfig = await loadLlmConfig()
+        if (savedConfig) {
+          useWikiStore.getState().setLlmConfig(savedConfig)
+        }
+        const savedAiChatModel = await loadAiChatModel()
+        if (savedAiChatModel) {
+          useWikiStore.getState().setAiChatModel(savedAiChatModel)
+        }
+        await initializeAiOutlineModelFromStorage()
+        const savedAiWorkflowMode = await loadAiWorkflowMode()
+        if (savedAiWorkflowMode) {
+          useWikiStore.getState().setAiWorkflowMode(savedAiWorkflowMode)
+        }
+        const savedOutlineWorkflowMode = await loadOutlineWorkflowMode()
+        if (savedOutlineWorkflowMode) {
+          useWikiStore.getState().setOutlineWorkflowMode(savedOutlineWorkflowMode)
+        }
+        const savedDefaultLlmModel = await loadDefaultLlmModel()
+        if (savedDefaultLlmModel) {
+          useWikiStore.getState().setDefaultLlmModel(savedDefaultLlmModel)
+        }
+        const savedProviderConfigs = await loadProviderConfigs()
+        if (savedProviderConfigs) {
+          useWikiStore.getState().setProviderConfigs(savedProviderConfigs)
+        }
+        const savedActivePreset = await loadActivePresetId()
+        if (savedActivePreset) {
+          useWikiStore.getState().setActivePresetId(savedActivePreset)
+          // Re-resolve the active preset's LlmConfig from (preset defaults
+          // + saved overrides). Without this, preset default updates
+          // (e.g. a corrected Anthropic model ID shipped in a release)
+          // never reach users who are relying on defaults — their stored
+          // `llmConfig` snapshot from a previous launch would keep the
+          // old value. Overrides still win, so an explicit user choice
+          // is preserved.
+          const preset = findLlmPresetById(savedActivePreset)
+          if (preset) {
+            const currentFallback = useWikiStore.getState().llmConfig
+            const override = (savedProviderConfigs ?? {})[savedActivePreset]
+            const resolved = resolveConfig(preset, override, currentFallback)
+            useWikiStore.getState().setLlmConfig(resolved)
+            await saveLlmConfig(resolved)
+          }
+        }
+        const savedEmbeddingConfig = await loadEmbeddingConfig()
+        if (savedEmbeddingConfig) {
+          useWikiStore.getState().setEmbeddingConfig(savedEmbeddingConfig)
+        }
+        const savedMcpConfig = await loadMcpConfig()
+        useWikiStore.getState().setMcpConfig(savedMcpConfig)
+        const savedSearchApiConfig = await loadSearchApiConfig()
+        if (savedSearchApiConfig) {
+          useWikiStore.getState().setSearchApiConfig(savedSearchApiConfig)
+        }
+        const savedProxy = await loadProxyConfig()
+        if (savedProxy) {
+          useWikiStore.getState().setProxyConfig(savedProxy)
+        }
+        const savedLang = await loadLanguage()
+        if (savedLang) {
+          await i18n.changeLanguage(savedLang)
+        }
+        const savedNovelMode = await loadNovelMode()
+        if (savedNovelMode !== null) {
+          useWikiStore.getState().setNovelMode(savedNovelMode)
+        }
+        const savedMaxHistoryMessages = await loadMaxHistoryMessages()
+        if (savedMaxHistoryMessages !== null) {
+          useChatStore.getState().setMaxHistoryMessages(savedMaxHistoryMessages)
+        }
+        const savedRevisionFeedbackWindowConfig = await loadRevisionFeedbackWindowConfig()
+        useWikiStore.getState().setRevisionFeedbackWindowConfig(savedRevisionFeedbackWindowConfig)
+        const lastProject = await getLastProject()
+        if (lastProject) {
+          try {
+            const proj = await openProject(lastProject.path)
+            await handleProjectOpened(proj)
+          } catch (err) {
+            console.error("打开上次项目失败:", err)
+          }
+        }
+      } catch (err) {
+        console.error("应用初始化失败:", err)
+      } finally {
+        setLoading(false)
+        void checkForAppUpdate()
+        void initAnalytics()
+      }
+    }
+    init()
+  }, [])
+
+  // 监听系统主题变化，当设置为跟随系统时自动切换
+  const theme = useWikiStore((s) => s.theme)
+  useEffect(() => {
+    if (theme === "system") {
+      applyTheme("system")
+      const unwatch = watchSystemTheme(() => {
+        applyTheme("system")
+      })
+      return unwatch
+    } else {
+      applyTheme(theme)
+    }
+  }, [theme])
+
+  useEffect(() => {
+    if (!project?.path) {
+      setAppTitleTotalWordCount(null)
+      return
+    }
+
+    let cancelled = false
+
+    const loadAppTitleTotalWordCount = async () => {
+      try {
+        const chapterNodes = await listDirectory(`${normalizePath(project.path)}/wiki/chapters`)
+        const files = flattenMdFiles(chapterNodes)
+        const contents = await Promise.all(
+          files.map((file) => readFile(file.path).catch(() => "")),
+        )
+        const total = contents.reduce(
+          (sum, markdown) => sum + countChapterBodyWords(markdown),
+          0,
+        )
+        if (!cancelled) setAppTitleTotalWordCount(total)
+      } catch {
+        if (!cancelled) setAppTitleTotalWordCount(null)
+      }
+    }
+
+    void loadAppTitleTotalWordCount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [dataVersion, project?.path])
+
+  useEffect(() => {
+    const title = formatAppTitle(project?.name, appTitleTotalWordCount)
+    document.title = title
+    if (isTauri()) {
+      import("@tauri-apps/api/window")
+        .then(({ getCurrentWindow }) => getCurrentWindow().setTitle(title))
+        .catch(() => {})
+    }
+  }, [appTitleTotalWordCount, project?.name])
+
+  async function handleProjectOpened(proj: WikiProject) {
+    await resetProjectState()
+    await initializeProjectContextCache(proj.path)
+
+    setProject(proj)
+    useWikiStore.getState().clearTransientTaskState()
+    // 默认开启小说模式
+    useWikiStore.getState().setNovelMode(true)
+    const projectNovelConfig = await loadNovelConfig(proj.id, proj.path)
+    if (projectNovelConfig && isCurrentProject(proj)) {
+      useWikiStore.getState().setNovelConfig(projectNovelConfig)
+    }
+    const projectRevisionFeedbackWindowConfig = await loadRevisionFeedbackWindowConfig(proj.id, proj.path)
+    if (isCurrentProject(proj)) {
+      useWikiStore.getState().setRevisionFeedbackWindowConfig(projectRevisionFeedbackWindowConfig)
+    }
+    setSelectedFile(null)
+    useWikiStore.getState().setFileContent("")
+    setActiveView("wiki")
+    useWikiStore.getState().setScheduledImportConfig({
+      enabled: false,
+      path: `${proj.path}/raw/sources`,
+      interval: 60,
+      lastScan: null,
+    })
+    useWikiStore.getState().bumpDataVersion()
+    await saveLastProject(proj)
+
+    // 自动打开最后阅读的章节和AI会话窗口（必须属于当前项目，避免跨书残留）
+    try {
+      if (isCurrentProject(proj)) {
+        const lastChapterPath = await loadLastReadChapter(proj.id)
+        if (
+          isCurrentProject(proj) &&
+          lastChapterPath &&
+          isChapterPathInProject(lastChapterPath, proj.path)
+        ) {
+          const exists = await fileExists(lastChapterPath)
+          if (exists && isCurrentProject(proj)) {
+            setSelectedFile(lastChapterPath)
+          }
+        }
+      }
+    } catch (err) {
+      console.error("加载最后阅读章节失败:", err)
+    }
+    if (isCurrentProject(proj)) {
+      useWikiStore.getState().setChatExpanded(true)
+    }
+
+    // 文件树由 AppLayout 通过 refreshProjectFileTree 加载；重队列/定时导入/审查/聊天后置 hydration。
+    void hydrateDeferredProjectState(proj)
+  }
+
+  async function handleSelectRecent(proj: WikiProject) {
+    try {
+      const validated = await openProject(proj.path)
+      await handleProjectOpened(validated)
+    } catch (err) {
+      window.alert(`打开项目失败：${err}`)
+    }
+  }
+
+  async function handleOpenProject() {
+    const path = await pickDirectory()
+    if (!path) return
+    try {
+      const proj = await openProject(path)
+      await handleProjectOpened(proj)
+    } catch (err) {
+      window.alert(`打开项目失败：${err}`)
+    }
+  }
+
+  async function handleSwitchProject() {
+    // Clear all per-project state BEFORE flipping back to the welcome screen
+    // so old data cannot leak in via any async render pass.
+    await resetProjectState()
+    setProject(null)
+    setFileTree([])
+    setSelectedFile(null)
+    useWikiStore.getState().setFileContent("")
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background text-muted-foreground">
+        Loading...
+      </div>
+    )
+  }
+
+  if (!project) {
+    return (
+      <>
+        <WelcomeScreen
+          onCreateProject={() => setShowCreateDialog(true)}
+          onOpenProject={handleOpenProject}
+          onSelectProject={handleSelectRecent}
+        />
+        <CreateProjectDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          onCreated={handleProjectOpened}
+        />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <AppLayout onSwitchProject={handleSwitchProject} />
+      <CreateProjectDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onCreated={handleProjectOpened}
+      />
+    </>
+  )
+}
+
+export default App
