@@ -1,3 +1,23 @@
 .DS_Store
 .claude/
+__pycache__/
+*.py[cod]
+
+# Video pipeline intermediate caches & model weights
+*.tar.gz
+*.pkl
+天幕红尘/视频/ab21/
+天幕红尘/视频/v0*_pilot/audio/
+天幕红尘/视频/v0*_pilot/clips/
+天幕红尘/视频/v0*_pilot/stills/
+天幕红尘/视频/v0*_pilot/shots/
+天幕红尘/视频/v0*_pilot/real_sfx/
+天幕红尘/视频/v0*_pilot/lipsync_in/
+天幕红尘/视频/v0*_pilot/lipsync_out/
+天幕红尘/视频/v0*_pilot/qc_*/
+天幕红尘/视频/v0*_pilot/out/*.mp4
+天幕红尘/视频/v0*_pilot/out/*.png
+天幕红尘/视频/v0*_pilot/out/qc_*/
+天幕红尘/视频/v0*_pilot/concat*.txt
+
 
