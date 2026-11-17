@@ -7,13 +7,12 @@ Usage:
   stageC_scout_hd_p2.py --scout          # render 480p scout candidates & contact sheets, then stop_all
   stageC_scout_hd_p2.py --hd             # render 720p HD from hd_plan.json, then stop_all
   stageC_scout_hd_p2.py --warm-pipeline  # --scout -> wait for hd_plan.json -> --hd -> stop_all
+  追加 --n 2 / --n 3：多台 G4 并行（common/colab_pool.py，规则 P-COLAB-DUAL-G4）；默认 --n 1 = 原单机行为
 """
 
 import json
-import re
 import subprocess
 import sys
-import threading
 import time
 import uuid
 from pathlib import Path
@@ -24,8 +23,11 @@ V10_DIR = VID_ROOT / "v10_fixes"
 sys.path.insert(0, str(V09_DIR))
 sys.path.insert(0, str(V10_DIR))
 
+sys.path.insert(0, str(VID_ROOT / "common"))
+
 import stage2_clips_v09 as s2v9
 import stage2_scout_hd_v10 as s2v10
+from colab_pool import ColabPool, Worker
 
 P2 = VID_ROOT / "ep01_p2"
 STILL_DIR = P2 / "stills"
@@ -215,50 +217,51 @@ def resolve_jobs(json_path: Path, default_jobs: list[tuple]) -> list[tuple]:
     return out
 
 
+def setup_wan(w: Worker):
+    """每台机器：拉起 ComfyUI + Wan2.2 权重；上传缓存按机器分开。"""
+    w.log("启动 ComfyUI / Wan2.2 ...")
+    cf_url = s2v9.ensure_wan22_and_comfyui(w.base_gradio)
+    w.ctx.update(cf_url=cf_url, use_vhs=s2v9.has_vhs_node(cf_url), client_id=uuid.uuid4().hex, uploaded={})
+    w.log(f"ComfyUI ready: {cf_url} (use_vhs={w.ctx['use_vhs']})")
+
+
+def render(w: Worker, job, width: int, height: int, out_dir: Path, tag: str) -> Path:
+    c = w.ctx
+    mp4_p = s2v10.submit_and_download(c["cf_url"], w.base_gradio, c["client_id"], c["use_vhs"], c["uploaded"],
+                                      job, width, height, out_dir, tag)
+    w.log(f"done {mp4_p.name}")
+    return mp4_p
+
+
 def main():
-    mode_arg = sys.argv[1] if len(sys.argv) > 1 else "--scout"
+    args = sys.argv[1:]
+    n = 1
+    if "--n" in args:
+        k = args.index("--n")
+        n = int(args[k + 1])
+        del args[k:k + 2]
+    mode_arg = args[0] if args else "--scout"
     scout_plan_path = P2 / "scout_plan.json"
     hd_plan_path = P2 / "hd_plan.json"
     scout_ready_flag = P2 / "scout_ready.json"
     default_jobs = make_default_scout_jobs()
 
-    stop_ka = threading.Event()
-    uploaded_cache: dict[Path, str] = {}
-    try:
-        print(f"[1/5] Waking EasyColab G4 GPU for ep01_p2 Wan2.2 ({mode_arg})...", flush=True)
-        wake_out = s2v9.run_bridge("wake", "--gpu", "G4")
-        print(wake_out, flush=True)
-        if "WAKE_ERROR" in wake_out:
-            raise RuntimeError(f"wake failed: {wake_out}")
-        m = re.findall(r"https://[a-zA-Z0-9.-]+\.gradio\.live", wake_out)
-        if not m:
-            raise RuntimeError("Missing gradio.live URL")
-        base_gradio = m[-1].rstrip("/")
-
-        threading.Thread(target=s2v9.keepalive_loop, args=(stop_ka,), daemon=True).start()
-
-        cf_url = s2v9.ensure_wan22_and_comfyui(base_gradio)
-        use_vhs = s2v9.has_vhs_node(cf_url)
-        client_id = uuid.uuid4().hex
-        print(f"[3/5] ComfyUI ready: {cf_url} (use_vhs={use_vhs})", flush=True)
-
+    with ColabPool(n=n, setup=setup_wan) as pool:
         if mode_arg in ("--scout", "--warm-pipeline"):
             if hd_plan_path.exists():
                 hd_plan_path.unlink()
             if scout_ready_flag.exists():
                 scout_ready_flag.unlink()
             scout_jobs = resolve_jobs(scout_plan_path, default_jobs) if scout_plan_path.exists() else default_jobs
-            sheets = []
-            print(f"[4/5-SCOUT] Running {len(scout_jobs)} fast 832x480 scout clips...", flush=True)
-            for job in scout_jobs:
-                mp4_p = s2v10.submit_and_download(cf_url, base_gradio, client_id, use_vhs, uploaded_cache, job, 832, 480, SCOUT_DIR, "p2s")
-                sh = make_p2_sheet(mp4_p)
-                sheets.append(str(sh))
-            scout_ready_flag.write_text(json.dumps({"sheets": sheets, "ready_at": time.time()}, ensure_ascii=False, indent=2), encoding="utf-8")
-            print(f"[SCOUT DONE] Contact sheets ready ({len(sheets)}).", flush=True)
+            print(f"[SCOUT] {len(scout_jobs)} 个 832x480 镜头，{len(pool.workers)} 台并行...", flush=True)
+            res, failed = pool.run(scout_jobs, lambda w, j: make_p2_sheet(render(w, j, 832, 480, SCOUT_DIR, "p2s")))
+            sheets = [str(res[j[0]]) for j in scout_jobs if j[0] in res]  # 按原任务顺序
+            scout_ready_flag.write_text(json.dumps({"sheets": sheets, "failed": failed, "ready_at": time.time()},
+                                                   ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"[SCOUT DONE] {len(sheets)} 张接触表；失败 {list(failed) or '无'}", flush=True)
 
         if mode_arg == "--warm-pipeline":
-            print("[WAIT-APPROVAL] Waiting up to 600s on warm G4 for hd_plan.json...", flush=True)
+            print("[WAIT-APPROVAL] 机器保温，最多等 600s 的 hd_plan.json...", flush=True)
             deadline = time.time() + 600.0
             while time.time() < deadline:
                 if hd_plan_path.exists() and hd_plan_path.stat().st_size > 10:
@@ -266,28 +269,14 @@ def main():
                     break
                 time.sleep(2.0)
             else:
-                print("[TIMEOUT] No hd_plan.json within 600s; safely stopping GPU.", flush=True)
+                print("[TIMEOUT] 600s 内没有 hd_plan.json，关机。", flush=True)
                 return
 
         if mode_arg in ("--hd", "--warm-pipeline"):
             hd_jobs = resolve_jobs(hd_plan_path, default_jobs) if hd_plan_path.exists() else [default_jobs[i] for i in range(0, len(default_jobs), 2)]
-            print(f"[4/5-HD] Rendering {len(hd_jobs)} winning 1280x720 HD clips on warmed session...", flush=True)
-            for job in hd_jobs:
-                mp4_p = s2v10.submit_and_download(cf_url, base_gradio, client_id, use_vhs, uploaded_cache, job, 1280, 720, CLIP_DIR, "p2hd")
-                make_p2_sheet(mp4_p)
-            print("[HD DONE] All winning 720p clips downloaded!", flush=True)
-
-    finally:
-        stop_ka.set()
-        print("[5/5] IMMEDIATELY stopping all Colab GPUs (stop_all)...", flush=True)
-        for attempt in range(4):
-            out = s2v9.run_bridge("stop_all")
-            print(out, flush=True)
-            if '"ok": true' in out and '"burn_rate_hourly": 0.0' in out:
-                break
-            time.sleep(3.0 * (attempt + 1))
-        print("[auth_status check]", flush=True)
-        print(s2v9.run_bridge("auth_status"), flush=True)
+            print(f"[HD] {len(hd_jobs)} 个 1280x720 镜头，{len(pool.workers)} 台并行...", flush=True)
+            res, failed = pool.run(hd_jobs, lambda w, j: make_p2_sheet(render(w, j, 1280, 720, CLIP_DIR, "p2hd")))
+            print(f"[HD DONE] {len(res)} 个完成；失败 {list(failed) or '无'}", flush=True)
 
 
 if __name__ == "__main__":

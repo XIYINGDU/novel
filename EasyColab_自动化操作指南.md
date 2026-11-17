@@ -69,6 +69,17 @@ WAKE_URL:https://xxxxxxxxxxxxxxxxxx.gradio.live
 "$BRIDGE_PY" "$BRIDGE" keepalive
 ```
 
+### 3b. 双开 G4（多会话版 bridge，2026-11-17 实测可用）
+原版 `wake` 写死单会话并复用已有实例，无法双开。用仓库里的多会话副本（云端 app.py 仍用应用包原版）：
+```bash
+MULTI="/Users/duxiying/Documents/novel/天幕红尘/loop/tools/colab_bridge_multi.py"
+"$BRIDGE_PY" "$MULTI" wake --gpu G4 --session A   # 各得一个 WAKE_URL
+"$BRIDGE_PY" "$MULTI" wake --gpu G4 --session B
+"$BRIDGE_PY" "$MULTI" keepalive                    # 会触达所有会话
+"$BRIDGE_PY" "$MULTI" stop --session A             # 只关一台；收尾仍 stop_all
+```
+扣费按台数叠加（G4 单台 10.05 CU/h）。两台挂同一个 EasyColab_Drive，避免同时写同名文件。详见 `天幕红尘/loop/ledger/experiments/2026-11-17_dual_g4.md`。
+
 ### 4. 任务完成立即释放全部算力（`stop_all`）
 ```bash
 "$BRIDGE_PY" "$BRIDGE" stop_all

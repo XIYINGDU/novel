@@ -56,6 +56,23 @@
   last_checked: 2026-11-08
   evidence: [../EasyColab_自动化操作指南.md]
 
+- id: P-COLAB-DUAL-G4
+  status: candidate
+  layer: 平台
+  symptom: 单台 G4 串行出片，Scout 选种/多镜头等待时间长
+  root_cause: EasyColab wake 写死单会话并复用；账号本身可并发多台 G4
+  scope: [colab, wan, qwen_i2i]
+  action:
+    process: >-
+      要省时间时用 loop/tools/colab_bridge_multi.py wake --session A / --session B 双开 G4，
+      镜头或种子分两组并行；扣费按台数线性叠加（单台 10.05 CU/h），总 CU 基本不变、多一次开机；
+      每台用 stop --session 单独关，finally 仍 stop_all 并确认 burn_rate_hourly==0.0；
+      两台挂同一个 EasyColab_Drive，不要同时往 Drive 写同名文件；也可 A 跑 Qwen、B 跑 Wan 绕开 P-SHM-NO-MIX
+  regress: 下一段 Scout 用双开跑，对比单开墙钟时间与 CU
+  last_checked: 2026-11-17
+  evidence: [ledger/experiments/2026-11-17_dual_g4.md, tools/colab_bridge_multi.py]
+  note: 2026-11-17 实测：两台同时 60s bf16 matmul 各 413 TFLOPS 无互扰；两台并行 wake 59s 各得 gradio URL 且 HTTP 200；stop --session 后 burn 20.1→10.05；同时最多 3 台 G4（第 4 台未分配，30.15 CU/h）
+
 - id: P-EDGE-TTS-RU
   status: deprecated
   layer: 平台
