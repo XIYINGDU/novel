@@ -1,0 +1,39 @@
+{
+ "rules": [
+  "C-SECONDARY-SOURCE-DISTRUST",
+  "P-FLOW-CHAR-REF-MODEL",
+  "V-GRIEF-AU-PROMPT",
+  "V-CONTINUITY-ADJACENT",
+  "V-SCOUT-THEN-HD",
+  "V-QA-EVERY-FRAME",
+  "V-REPAIR-LOCAL-FIRST",
+  "V-INTERP-RIFE-ONLY",
+  "V-QA-FACE-METRIC"
+ ],
+ "jobs": [
+  {
+   "id": "21b_AU_A_s1",
+   "seed": 8216,
+   "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，extra fingers, six fingers, fused fingers, deformed hands, missing fingers, extra limbs, third hand, modern smartphone, iPhone, wireless phone, rubbery face, morphing face, smiling, laughing, cheerful grin, standing up, calm expression, cheerful, brown bag",
+   "prompt": "Raw devastating 1991 35mm low-angle close-up on cold hospital linoleum floor under harsh cool light. Slumped against the wall in grief, inner eyebrows raised and pinched upward, mouth corners pulled down, chin trembling, lips closed, wet eyes open, tears running down pale cheeks; her trembling clenched fist strikes twice weakly against the cold floor tiles as her shoulders shake."
+  },
+  {
+   "id": "21b_AU_A_s2",
+   "seed": 8217,
+   "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，extra fingers, six fingers, fused fingers, deformed hands, missing fingers, extra limbs, third hand, modern smartphone, iPhone, wireless phone, rubbery face, morphing face, smiling, laughing, cheerful grin, standing up, calm expression, cheerful, brown bag",
+   "prompt": "Sorrowful 1991 hospital corridor close-up: woman slumped against white wall, inner eyebrows raised and pinched upward, mouth corners pulled down, chin trembling, lips closed, wet eyes open, tears on her cheeks, she presses her small clenched fist softly against the cold floor in helplessness, shoulders shaking."
+  },
+  {
+   "id": "21b_AU_B_s1",
+   "seed": 8216,
+   "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，extra fingers, six fingers, fused fingers, deformed hands, missing fingers, extra limbs, third hand, modern smartphone, iPhone, wireless phone, rubbery face, morphing face, smiling, laughing, cheerful grin, standing up, calm expression, cheerful, brown bag, squinting, eyes squeezed shut, wide stretched mouth, bared teeth, grimace",
+   "prompt": "Raw devastating 1991 35mm low-angle close-up on cold hospital linoleum floor under harsh cool light. Slumped against the wall in grief, inner eyebrows raised and pinched upward, mouth corners pulled down, chin trembling, lips closed, wet eyes open, tears running down pale cheeks; her trembling clenched fist strikes twice weakly against the cold floor tiles as her shoulders shake."
+  },
+  {
+   "id": "21b_AU_B_s2",
+   "seed": 8217,
+   "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，extra fingers, six fingers, fused fingers, deformed hands, missing fingers, extra limbs, third hand, modern smartphone, iPhone, wireless phone, rubbery face, morphing face, smiling, laughing, cheerful grin, standing up, calm expression, cheerful, brown bag, squinting, eyes squeezed shut, wide stretched mouth, bared teeth, grimace",
+   "prompt": "Sorrowful 1991 hospital corridor close-up: woman slumped against white wall, inner eyebrows raised and pinched upward, mouth corners pulled down, chin trembling, lips closed, wet eyes open, tears on her cheeks, she presses her small clenched fist softly against the cold floor in helplessness, shoulders shaking."
+  }
+ ]
+}

@@ -1,5 +1,6 @@
 .DS_Store
-.claude/
+.claude/*
+!.claude/skills/
 __pycache__/
 *.py[cod]
 
@@ -21,3 +22,6 @@ __pycache__/
 天幕红尘/视频/v0*_pilot/concat*.txt
 
 
+
+# loop: model weights are downloaded, not committed (see loop/README.md)
+天幕红尘/loop/tools/models/

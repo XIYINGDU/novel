@@ -1,0 +1,51 @@
+# 剧本线规则（agy 写，vm 审）
+
+- id: S-NO-COPY-PLAN-EXAMPLES
+  status: active
+  layer: 剧本
+  symptom: 照抄改编方案示例里的错误
+  root_cause: agy 把方案当原著
+  scope: [all_script]
+  action:
+    process: 给 agy 的提示附原著章节原文；审稿时对方案示例逐条回原著核对（见 C-SECONDARY-SOURCE-DISTRUST）
+  evidence: [../.claude/state/current-focus.md]
+
+- id: S-PERIOD-PROPS
+  status: active
+  layer: 剧本
+  symptom: 年代不对的道具（1991–92 年不该有的东西）
+  root_cause: 模型不带年代约束
+  scope: [all_script]
+  action:
+    process: 审稿时道具逐个过年代；常见错项累计进本条 note
+  evidence: [../.claude/state/current-focus.md]
+
+- id: S-NO-PSYCHE-IN-ACTION
+  status: active
+  layer: 剧本
+  symptom: 动作描写里写人物心理
+  root_cause: 小说笔法带入剧本
+  scope: [all_script]
+  action:
+    process: 动作行只写可拍的；心理改成动作、表情或删除
+  evidence: [../.claude/state/current-focus.md]
+
+- id: S-CHAPTER-CALIBRATE-13-20
+  status: active
+  layer: 剧本
+  symptom: 第 13–20 集章号是粗分
+  root_cause: 方案阶段未逐章校准
+  scope: [ep:13-20]
+  action:
+    process: 写到前逐章校准章号
+  evidence: [影视改编方案_剧集版.md]
+
+- id: S-SCRIPT-TO-SHOT-FILMABLE
+  status: candidate
+  layer: 剧本
+  symptom: 剧本里的动作到了分镜要拆成 4 镜、小字道具要改写
+  root_cause: 剧本阶段不知道视频模型的边界（由此及彼：视频规则反推到剧本）
+  scope: [all_script]
+  action:
+    process: 审稿时用 V-SPLIT-COMPOUND-ACTION、V-TEXT-NO-SMALL-PRINT、P-FLOW-GUN-BLOCK 预检，把不可拍处标 [拍摄注]
+  evidence: [rules/video.yaml]

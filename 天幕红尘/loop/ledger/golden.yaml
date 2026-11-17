@@ -1,0 +1,8 @@
+# 黄金回归镜头：踩过坑的镜头。规则升级前在相关镜头上重跑 Scout，对比旧判定。
+# 只跑 scope 命中的那几镜，不全量。
+- {shot: "01",  ep: "01", tags: [back_view, action_multi_pose, gunshot, char:叶子农], pitfall: 醉酒晃动/转头/蟹步, best: 视频/v13_fixes/clips}
+- {shot: 02a,  ep: "01", tags: [flf2v, precise_end_state, gunshot], pitfall: 早帧红丝/中段发灰, best: 视频/v13_fixes/clips}
+- {shot: 02b2, ep: "01", tags: [back_view, action_multi_pose, flf2v, char:叶子农], pitfall: 空间瞬移/脚离地/磕头蜷缩, best: 视频/v13_fixes/clips}
+- {shot: 10a,  ep: "01", tags: [hands, prop_closeup], pitfall: 六指/双弹巢/钢表, best: 视频/v07_fixes}
+- {shot: 21b,  ep: "01", tags: [face_closeup, emotion_negative, crying, char:罗慧娟], pitfall: 哭相读成笑（Wan 眯眼咧嘴）, best: 视频/ep01_p2/clips}
+- {shot: "23", ep: "01", tags: [hands, scene_change], pitfall: 三只手/围裙串场, best: 视频/ep01_p2/clips}

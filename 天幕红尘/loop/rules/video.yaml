@@ -1,0 +1,232 @@
+# 视觉生成规则（Qwen-Image i2i / Wan2.2 I2V·FLF2V / 本地修补）
+# 字段说明见 loop/README.md。status: active 已验证 | candidate 待验证 | deprecated 已退役
+# scope 是「由此及彼」的入口：compile.py 按镜头标签命中规则。
+
+- id: V-ANCHOR-STATE-LEAK
+  status: candidate
+  layer: 锚点
+  symptom: 由参考图直接驱动的模型（InfiniteTalk、Flow 角色参考）出片跟着定妆照的表情、光线、道具走
+  root_cause: 这类模型没有 i2i 首帧这一步，参考图的状态直接进入成片
+  scope: [infinitetalk, flow_char_ref]
+  action:
+    process: 走参考图直驱的模型时，用中性锚点（嘴闭、无笑意、平光、无手持道具）或按镜头状态单独做锚点
+  evidence:
+    - 视频/ab21（21 号 InfiniteTalk 画面跟着定妆照：白天、无电话）
+    - ledger/experiments/2026-11-17_anchor.md
+  regress: []
+  note: >-
+    2026-11-17 去伪存真：原假设「锚点微笑泄漏导致 i2i→Wan 管线悲恸镜头假笑」被证伪。
+    锚点 smile 0.74/0.69，但 i2i 关键帧全部 ≤0.04，笑在 i2i 步已被清掉。
+    因此 scope 收窄到参考图直驱的模型，原 neg 词已移除。
+
+- id: V-GRIEF-AU-PROMPT
+  status: candidate
+  layer: 提示词
+  symptom: 哭戏被读成笑（眯眼、嘴角横拉、露齿、眉往下压）
+  root_cause: >-
+    Wan 把 crying/sobbing 画成「眯眼咧嘴」的痛苦怪相，和笑共用嘴角横拉；
+    真悲伤的读法靠内眉上抬（AU1+4）、嘴角下拉（AU15）、下巴皱（AU17），这些它不会自动给。
+    负向词 smiling/laughing 一直在 NEG_BASE 里也没用，因为模型并不认为自己在画笑
+  scope: [emotion_negative, face_closeup, crying]
+  action:
+    prompt: [inner eyebrows raised and pinched upward, mouth corners pulled down, chin trembling, lips closed, wet eyes open]
+    process: >-
+      哭戏用面部动作单元描述，少用 crying/sobbing/weeping；
+      有台词（要走 LatentSync）的镜头不写 lips closed，只写眉和嘴角，嘴交给口型；出片后跑 face_metrics，laugh_read 必须为 0
+  evidence:
+    - ledger/experiments/2026-11-17_anchor.md
+    - 视频/ep01_p2/clips/clip_21b.mp4（smile 0.69，brow_in 0.005，读成笑 17/20 帧）
+    - 视频/regress/2026-11-17_grief_au/metrics.json（读成笑 s1 61→45，s2 49→4）
+  regress: [21b]
+  note: >-
+    2026-11-17 两轮回归：AU 描述不稳健。种子 8216：原 61 → AU 45；种子 8217：原 49 → AU(p1 措辞) 56 / AU(p2 措辞) 4。
+    唯一的好结果来自特定措辞加特定种子。动作幅度（press 对 strike）在同一种子下 45 对 45，无影响，混杂假设证伪。
+    保持候选；按目前证据，哭戏多开种子 + 人眼筛，比任何提示词技巧都可靠
+
+- id: V-SPLIT-COMPOUND-ACTION
+  status: active
+  layer: 分镜
+  symptom: 单镜多段姿态转换出现醉酒晃动、向后蹲坐、磕头式蜷缩
+  root_cause: Wan2.2 14B 2–4s 单镜只能可靠完成一段姿态转换
+  scope: [action_multi_pose]
+  action:
+    process: 一镜只承载一个姿态转换；复杂动作拆成因果咬合的短镜组，邻镜首尾姿态与地标连续
+  evidence: [视频/v13_fixes/stage1_keyframes_v13.py, 视频/AI短剧制作经验总结.md#一]
+  regress: ["01", 02b2]
+
+- id: V-CONTINUITY-ADJACENT
+  status: active
+  layer: 分镜
+  symptom: 空间瞬移（上一镜已站在平地，下一镜又在跨台阶）
+  root_cause: 每镜首帧独立生成，没有继承上一镜末帧状态
+  scope: [all_video]
+  action:
+    process: 下一镜起幅首帧用上一镜末帧（或其 i2i 变体）生成，写明景别/姿态/地标三项继承
+  evidence: [视频/AI短剧制作经验总结.md#一]
+  regress: [02b2]
+
+- id: V-FLF2V-FOR-PRECISE-ENDS
+  status: active
+  layer: 参数
+  symptom: 纯 I2V 动作终点不可控（血迹面积、倒地方向）
+  root_cause: I2V 只锁起点；终点由模型自由发挥
+  scope: [action_multi_pose, precise_end_state]
+  action:
+    process: 先 i2i 出 2–3 张同机位末帧候选择优，再走 WanFirstLastFrameToVideo
+  evidence: [视频/v13_fixes/stage2_scout_hd_v13.py]
+  regress: [02a, 02b2]
+
+- id: V-BACK-VIEW-LOCK
+  status: active
+  layer: 提示词
+  symptom: 背影镜头人物转头露侧脸
+  root_cause: 模型倾向让人物朝向镜头
+  scope: [back_view, char:叶子农]
+  action:
+    prompt: [strictly back view, back of short neat dark hair only, face NEVER visible]
+    neg: [side profile, cheek visible, turning around, face visible]
+  evidence: [ledger/mined.json#turning around, 视频/v13_fixes/stage1_keyframes_v13.py]
+  regress: ["01"]
+
+- id: V-HAND-ANATOMY
+  status: active
+  layer: 提示词
+  symptom: 多指、三只手、多出手表/手镯、双弹巢
+  root_cause: 手部与器物特写是扩散模型高发畸变区
+  scope: [hands, prop_closeup]
+  action:
+    prompt: [five-finger bare right hand, four fingers + one thumb]
+    neg: [six fingers, extra finger, extra arm, three hands, extra limbs, steel wristwatch, silver bracelet]
+  evidence: [ledger/mined.json#three hands, 视频/v06_master/v06_patches.py（10b 钢表）]
+  regress: [10a, "23"]
+
+- id: V-MOTION-SOBER
+  status: active
+  layer: 提示词
+  symptom: 中弹/倒地动作夸张（跳起、蟹步、扑向台阶、慢动作）
+  root_cause: 模型对「中枪」联想到动作片表演
+  scope: [action_multi_pose, gunshot]
+  action:
+    prompt: [sober steady walk, micro backward recoil arrest, collapse sideways-forward flat on pavement]
+    neg: [drunk swaying, wide crab straddle, jumping sideways, diving onto stairs, slow motion, kneeling kowtow curl, crouching on steps, muzzle flash]
+  evidence: [ledger/mined.json#drunk swaying]
+  regress: ["01", 02b2]
+
+- id: V-SCOUT-THEN-HD
+  status: active
+  layer: 流程
+  symptom: HD 废片计费、重复下载 35GB 权重
+  root_cause: 未筛种就跑高清
+  scope: [all_video]
+  action:
+    process: 832×480 每镜 2–3 种子探路 → 本地 step=1 逐帧接触表筛种 → 写 hd_plan.json → 同一台温热 G4 跑 1280×720
+  evidence: [视频/v10_fixes/stage2_scout_hd_v10.py, 视频/v13_fixes/hd_plan.json]
+
+- id: V-QA-EVERY-FRAME
+  status: active
+  layer: 质检
+  symptom: 隔帧抽检漏掉早帧红丝、脚离地、瞬间假笑/翻白眼
+  root_cause: 瑕疵常只持续 3–6 帧
+  scope: [all_video]
+  action:
+    process: 接触表必须 step=1；判定写入 ledger/defects.jsonl（见 /tm-qa）
+  evidence: [视频/AI短剧制作经验总结.md#二.2]
+
+- id: V-REPAIR-LOCAL-FIRST
+  status: active
+  layer: 后期
+  symptom: 为小瑕疵整条重抽，表演反而变差
+  root_cause: 重抽是赌博，局部手术是确定性的
+  scope: [all_video]
+  action:
+    process: 表演/机位/眼神已对时，优先 RIFE 曲线跳帧、局部遮罩、曝光稳定器；人物遮罩给足余量（pad≥36）防 halo
+  evidence: [视频/v13_fixes/build_v13.py, 视频/v06_master/v06_patches.py]
+
+- id: V-FLF2V-MIDDLE-EXPOSURE
+  status: active
+  layer: 后期
+  symptom: FLF2V 中段白衣发灰、整体泛暖、闪光
+  root_cause: 首尾帧插值中段色彩漂移
+  scope: [flf2v]
+  action:
+    neg: [brightness flare, exposure shift, warm flash]
+    process: build 阶段跑 stabilize_hit_exposure（首尾帧亮度锚点 + 外围羽化遮罩）
+  evidence: [视频/v13_fixes/build_v13.py, ledger/mined.json#exposure shift]
+
+- id: V-TEXT-NO-SMALL-PRINT
+  status: active
+  layer: 剧作
+  symptom: 长传真、合同、多行小字乱码
+  root_cause: 视频模型无法稳定渲染小字
+  scope: [text_sign, prop_closeup]
+  action:
+    process: 小字改成动作+对白；仅「见路不走」等大字符号用首帧锁定或 8 参数透视贴图
+  evidence: [视频/v06_master/v06_patches.py]
+
+- id: V-PROP-PIXEL-LOCK
+  status: active
+  layer: 锚点
+  symptom: 相框、横幅、打火机每镜长得不一样
+  root_cause: 文生图每次重画道具
+  scope: [prop_closeup, prop:全家福, prop:横幅, prop:打火机, prop:搪瓷缸]
+  action:
+    process: 同一高清源图 Image.PERSPECTIVE 贴入；道具源图登记在 canon.yaml
+  evidence: [视频/v06_master/v06_patches.py]
+
+- id: V-INTERP-RIFE-ONLY
+  status: active
+  layer: 后期
+  symptom: 16→30fps 重影拖泥
+  root_cause: Image.blend 线性混合不是插帧
+  scope: [all_video]
+  action:
+    process: 一律 RifeEngine(mps) render_positions，转折点对齐 jolt/gunflash/拟音毫秒
+  evidence: [视频/v13_fixes/build_v13.py]
+
+- id: V-NEG-SCENE-BLEED
+  status: deprecated
+  layer: 提示词
+  symptom: （未观测到）医院镜头里冒出公寓、围裙
+  root_cause: 未证实
+  scope: [scene_change]
+  action:
+    process: 不要在正向提示里写「NO X」（扩散模型不懂否定，反而会画出 X），要排除的东西放 neg
+  evidence: [视频/ep01_p2/stills/still_22_start.png]
+  note: >-
+    2026-11-17 去伪存真：22/23/24 的关键帧都没有围裙或公寓，原证据只是追加的负向词，
+    那是预防不是缺陷。2026-11-17 xiying 批准退役；「正向写 NO X」这一条另作观察
+
+- id: V-QA-FACE-METRIC
+  status: active
+  layer: 质检
+  symptom: 表情问题靠肉眼判断，结论不稳定，也没法比较「改了有没有用」
+  root_cause: 缺少量尺
+  scope: [face_closeup, emotion_negative, crying, lipsync]
+  action:
+    process: >-
+      出片后跑 loop/tools/face_metrics.py 作初筛：悲恸/冷硬镜头 laugh_read 高要人工复核；
+      开 G4 做回归前，先用本地已有素材测一遍，确认假设成立再花钱。
+      已知偏差：①蹙眉（AU4）不会算进 brow_in，闭嘴抿哭会被多报成「读成笑」；
+      ②同一表演 480p 与 720p 读数差很大（21b：scout 4 帧，HD 40 帧，肉眼几乎一样）。
+      只在同分辨率内比较；与肉眼冲突以肉眼为准
+  evidence: [tools/face_metrics.py, ledger/experiments/2026-11-17_anchor.md]
+
+- id: V-WAN-CFG1-NO-NEG
+  status: active
+  layer: 参数
+  symptom: Wan 镜头堆负向词没有任何效果
+  root_cause: >-
+    Wan2.2 LightX2V 4 步蒸馏在 KSamplerAdvanced 里是 cfg=1.0，CFG=1 时负向条件根本不参与计算。
+    自 v09 以来所有 Wan 负向词（NEG_BASE 的 smiling/laughing、背影防转身、防醉步……）都是零作用；
+    当时「修好了」其实是换了种子或改了正向提示
+  scope: [all_video, wan]
+  action:
+    process: >-
+      Wan 阶段只靠关键帧、正向提示和种子；负向词只在 Qwen-Image i2i 阶段写。
+      细微表情镜头每镜至少 4 个种子（V-SCOUT-THEN-HD 默认 2 个不够）。
+      真要在 Wan 用负向，需另开 CFG>1 的非蒸馏路径（慢约 10 倍），先做回归
+  evidence:
+    - 视频/regress/2026-11-17_grief_au/plan.json（A/B 只有 neg 不同）
+    - 视频/regress/2026-11-17_grief_au/scout（A/B 输出逐字节相同，md5 一致）
+    - 视频/v09_fixes/stage2_clips_v09.py（cfg 1.0）
+  regress: []

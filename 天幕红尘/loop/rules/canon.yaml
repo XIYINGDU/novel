@@ -1,0 +1,77 @@
+# 剧作红线与原著事实（去伪存真：每条要能对回原著章节或改编方案）
+# 视频与剧本两条线共用。
+
+- id: C-YZN-NO-FACE-EP01
+  status: active
+  layer: 剧作
+  symptom: 第 1 集叶子农露正脸
+  root_cause: 改编方案规定第 1 集不露脸
+  scope: [char:叶子农, ep:01]
+  action:
+    process: 只用肩颈以下特写、背影、手部局部
+  evidence: [影视改编方案_剧集版.md]
+
+- id: C-PROPS-UNIQUE
+  status: active
+  layer: 剧作
+  symptom: 核心道具混用或重画
+  root_cause: 道具是全剧母题，必须唯一
+  scope: [prop:打火机, prop:搪瓷缸, prop:全家福, prop:横幅]
+  action:
+    process: 不锈钢打火机 / 纯金盔甲打火机 / 国旗贴章打火机 / 白色搪瓷大茶缸 / 全家福 / 「见路不走」横幅，各自一张源图全片锁定
+  evidence: [视频/AI短剧制作经验总结.md#一.2]
+
+- id: C-BANNER-CALLIGRAPHER
+  status: active
+  layer: 史实
+  symptom: 横幅写成叶子农落款
+  root_cause: 原著是书法家写的
+  scope: [prop:横幅]
+  evidence: [../.claude/state/current-focus.md]
+
+- id: C-SHOT-LOCATION-CH44
+  status: active
+  layer: 史实
+  symptom: 中弹地点写成塞纳河边
+  root_cause: QMAI拆书 3.1 写错；原著第 44 章是餐馆大门 4 层台阶（刚下台阶中枪），圆领套头白色运动卫衣+运动鞋
+  scope: [ep:01, gunshot, char:叶子农]
+  evidence: [044_第四十四章.md, ../.claude/state/current-focus.md]
+  last_checked: 2026-11-17
+  note: 原著中弹后戴梦岩抱住他、托住头部，老九冲进餐馆叫救护车。改编方案有意拆开：第 1 集冷开场只给背影倒地切黑，第 18 集闭环给全貌（见 C-COLDOPEN-SPLIT）
+
+- id: C-LINXUEHONG-NEVER-MET-YZN
+  status: active
+  layer: 史实
+  symptom: 闪回让林雪红与叶子农同场
+  root_cause: 原著林雪红没见过叶子农
+  scope: [char:林雪红, flashback]
+  evidence: [../.claude/state/current-focus.md]
+
+- id: C-LUOJIAMING-NOT-WENZHOU
+  status: active
+  layer: 史实
+  symptom: 罗家明写成温州人
+  root_cause: 原著无此设定
+  scope: [char:罗家明]
+  evidence: [../.claude/state/current-focus.md]
+
+- id: C-SECONDARY-SOURCE-DISTRUST
+  status: active
+  layer: 史实
+  symptom: 改编方案/拆书里的示例错误被下游照抄
+  root_cause: 二手材料有错（如塞纳河），下游当成原著
+  scope: [all_script, all_video]
+  action:
+    process: 地点、服装、人物关系一律回原著章节核对，引用写章号；二手材料只作索引
+  evidence: [../.claude/state/current-focus.md]
+
+- id: C-COLDOPEN-SPLIT
+  status: active
+  layer: 剧作
+  symptom: 把第 1 集冷开场当成对原著的偏离，或在第 1 集提前给出戴梦岩
+  root_cause: 改编方案有意拆分——第 1 集只给背影、两声闷响、看楼、看血、一句台词、切黑；第 18 集闭环给戴梦岩怀抱和「都是人的那点事……说你老土吧」
+  scope: [ep:01, ep:18, gunshot, char:叶子农, char:戴梦岩]
+  action:
+    process: 第 1 集不出戴梦岩和老九；第 18 集台阶戏必须与第 1 集机位、服装、四级台阶、对面大楼严格一致，可复用第 1 集素材
+  evidence: [影视改编方案_剧集版.md, 044_第四十四章.md]
+  last_checked: 2026-11-17

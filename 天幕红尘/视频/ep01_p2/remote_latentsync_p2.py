@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Run ByteDance LatentSync-1.6 (512x512 high-res V2V lip-sync) on all v0.4 character shots in ONE GPU pass."""
+"""Run ByteDance LatentSync-1.6 (512x512 V2V lip-sync) on all ep01_p2 speaking shots in ONE G4 GPU pass."""
 
 import os
 import shutil
@@ -13,7 +13,7 @@ from pathlib import Path
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-WORK = Path("/tmp/v04_lipsync")
+WORK = Path("/tmp/ep01_p2_lipsync")
 IN_DIR = WORK / "in"
 OUT_DIR = WORK / "out"
 REPO_DIR = Path("/content/LatentSync")
@@ -21,7 +21,6 @@ REPO_DIR = Path("/content/LatentSync")
 for d in (WORK, IN_DIR, OUT_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-# 1. Install lightweight Python dependencies WITHOUT touching Colab's prebuilt CUDA/Blackwell torch!
 print("[1/5] Installing lightweight LatentSync dependencies (preserving system torch)...", flush=True)
 subprocess.check_call(
     [
@@ -33,7 +32,6 @@ subprocess.check_call(
     ]
 )
 
-# 2. Clone LatentSync source if not present
 if not (REPO_DIR / "scripts" / "inference.py").exists():
     print("[2/5] Cloning bytedance/LatentSync...", flush=True)
     if REPO_DIR.exists():
@@ -44,8 +42,6 @@ if not (REPO_DIR / "scripts" / "inference.py").exists():
         env=env_git,
     )
 
-# 3. Apply surgical compatibility & cinema low-key robustness patches
-# Patch A: AdaLayerNorm & FeedForward import compatibility across diffusers 0.32..0.36+
 for rel_p in ("latentsync/models/attention.py", "latentsync/models/motion_module.py", "latentsync/models/stable_syncnet.py"):
     py_f = REPO_DIR / rel_p
     if py_f.exists():
@@ -57,7 +53,6 @@ for rel_p in ("latentsync/models/attention.py", "latentsync/models/motion_module
             )
             py_f.write_text(txt, encoding="utf-8")
 
-# Patch B: Remove decord dependency in util.py -> use cv2 & librosa directly, and keep exact 25fps frames!
 util_py = REPO_DIR / "latentsync" / "utils" / "util.py"
 util_txt = util_py.read_text(encoding="utf-8")
 if "from decord import AudioReader, VideoReader" in util_txt:
@@ -84,8 +79,6 @@ if "from decord import AudioReader, VideoReader" in util_txt:
     util_txt = util_txt.replace(old_audio_fn, new_audio_fn)
     util_py.write_text(util_txt, encoding="utf-8")
 
-# Patch C: Allow CPU+CUDA fallback in InsightFace, cache FaceAnalysis across shots,
-# lower dark-scene threshold to 0.25, and auto-retry gamma-brightened copy on ultra-dark noir frames!
 fd_py = REPO_DIR / "latentsync" / "utils" / "face_detector.py"
 fd_txt = fd_py.read_text(encoding="utf-8")
 if "_CACHED_FACE_APP" not in fd_txt:
@@ -114,12 +107,27 @@ if "_CACHED_FACE_APP" not in fd_txt:
     fd_txt = fd_txt.replace("def __call__(self, frame, threshold=0.5):", "def __call__(self, frame, threshold=0.25):")
     fd_txt = fd_txt.replace(
         "        faces = self.app.get(frame)",
-        "        faces = self.app.get(frame)\n        if len(faces) == 0:\n            bright = np.clip(frame.astype(np.float32) * 2.1 + 20.0, 0, 255).astype(np.uint8)\n            faces = self.app.get(bright)",
+        (
+            "        import os as _os\n"
+            "        _roi = _os.environ.get('LS_ROI_MODE', '')\n"
+            "        if _roi:\n"
+            "            frame = frame.copy()\n"
+            "            _w = frame.shape[1]\n"
+            "            if _roi == 'left_56':\n"
+            "                frame[:, int(_w * 0.56):] = 0\n"
+            "            elif _roi == 'right_46':\n"
+            "                frame[:, :int(_w * 0.46)] = 0\n"
+            "            elif _roi == 'right_28':\n"
+            "                frame[:, :int(_w * 0.28)] = 0\n"
+            "        faces = self.app.get(frame)\n"
+            "        if len(faces) == 0:\n"
+            "            bright = np.clip(frame.astype(np.float32) * 2.1 + 20.0, 0, 255).astype(np.uint8)\n"
+            "            faces = self.app.get(bright)"
+        ),
     )
-    fd_txt = fd_txt.replace("if w < 50 or h < 80:", "if w < 32 or h < 45:")
+    fd_txt = fd_txt.replace("if w < 50 or h < 80:", "if w < 28 or h < 40:")
     fd_py.write_text(fd_txt, encoding="utf-8")
 
-# Patch D: Pre-seed & temporal carry-over in image_processor.py + lipsync_pipeline.py so dark frames never abort
 ip_py = REPO_DIR / "latentsync" / "utils" / "image_processor.py"
 ip_txt = ip_py.read_text(encoding="utf-8")
 if "_last_det" not in ip_txt:
@@ -134,11 +142,10 @@ lp_txt = lp_py.read_text(encoding="utf-8")
 if "_preseed_det" not in lp_txt:
     lp_txt = lp_txt.replace(
         "        for frame in tqdm.tqdm(video_frames):",
-        "        # _preseed_det: ensure _last_det is populated even if frame 0 is ultra-dark\n        for _pf in video_frames[::4]:\n            _pb, _pl = self.image_processor.face_detector(_pf)\n            if _pb is not None:\n                self.image_processor._last_det = (_pb, _pl)\n                break\n        for frame in tqdm.tqdm(video_frames):",
+        "        # _preseed_det: ensure _last_det is populated per clip without leaking across clips\n        self.image_processor._last_det = None\n        for _pf in video_frames[::4]:\n            _pb, _pl = self.image_processor.face_detector(_pf)\n            if _pb is not None:\n                self.image_processor._last_det = (_pb, _pl)\n                break\n        for frame in tqdm.tqdm(video_frames):",
     )
     lp_py.write_text(lp_txt, encoding="utf-8")
 
-# 4. Download ByteDance/LatentSync-1.6 weights into /content/LatentSync/checkpoints
 from huggingface_hub import hf_hub_download
 
 ckpt_dir = REPO_DIR / "checkpoints"
@@ -150,7 +157,6 @@ for fn in ("whisper/tiny.pt", "latentsync_unet.pt"):
         hf_hub_download(repo_id="ByteDance/LatentSync-1.6", filename=fn, local_dir=str(ckpt_dir))
         print(f"  downloaded {fn}", flush=True)
 
-# Unpack uploaded input clips + stems
 tar_in = Path("/content/lipsync_in.tar.gz")
 if not tar_in.exists():
     tar_in = Path("/tmp/lipsync_in.tar.gz")
@@ -159,7 +165,6 @@ if not tar_in.exists():
 with tarfile.open(tar_in, "r:gz") as tf:
     tf.extractall(IN_DIR)
 
-# 5. Load LipsyncPipeline ONCE and process all 7 clips at full 20-step DDIM precision!
 os.chdir(REPO_DIR)
 sys.path.insert(0, str(REPO_DIR))
 
@@ -200,8 +205,16 @@ pipeline = LipsyncPipeline(
     scheduler=scheduler,
 ).to("cuda")
 
-SHOT_IDS = ["05a", "05c", "06a", "08b", "09a", "11a", "11b"]
-for sid in SHOT_IDS:
+ROI_BY_SHOT = {
+    "18b": "left_56",
+    "23": "right_46",
+    "24a": "right_28",
+    "24c": "right_28",
+}
+
+shot_ids = sorted(p.stem.removeprefix("vid_") for p in IN_DIR.glob("vid_*.mp4"))
+print(f"[lipsync slate] {shot_ids}", flush=True)
+for sid in shot_ids:
     vid_p = IN_DIR / f"vid_{sid}.mp4"
     wav_p = IN_DIR / f"stem_{sid}.wav"
     out_p = OUT_DIR / f"sync_{sid}.mp4"
@@ -209,9 +222,14 @@ for sid in SHOT_IDS:
         print(f"[skip missing] {sid}", flush=True)
         continue
     t0 = time.time()
-    set_seed(1991)
-    # Gentler guidance on silent grief shot 09a and subtle whispers 11a/11b; crisp articulation on 05a/05c/06a/08b
-    g_scale = 1.25 if sid in ("09a", "11a", "11b") else 1.5
+    set_seed(1991 + abs(hash(sid)) % 100)
+    roi_mode = ROI_BY_SHOT.get(sid, "")
+    if roi_mode:
+        os.environ["LS_ROI_MODE"] = roi_mode
+    else:
+        os.environ.pop("LS_ROI_MODE", None)
+    g_scale = 1.75 if sid in ("15", "16", "18b", "21b", "24a", "24c") else 1.55
+    print(f"[lipsync run] {sid} (g={g_scale}, roi={roi_mode or 'full'})", flush=True)
     try:
         pipeline(
             video_path=str(vid_p),
@@ -232,6 +250,8 @@ for sid in SHOT_IDS:
         traceback.print_exc()
         print(f"[lipsync fallback] {sid} raised {e}; copying clean RIFE base clip", flush=True)
         shutil.copyfile(vid_p, out_p)
+    finally:
+        os.environ.pop("LS_ROI_MODE", None)
 
 del pipeline, unet, vae, audio_encoder
 torch.cuda.empty_cache()
@@ -241,4 +261,4 @@ with tarfile.open(tar_out, "w:gz") as tf:
     for p in sorted(OUT_DIR.glob("sync_*.mp4")):
         tf.add(p, arcname=p.name)
 
-print(f"[5/5] LATENTSYNC_V04_DONE {tar_out} ({tar_out.stat().st_size // 1024} KB)", flush=True)
+print(f"[5/5] LATENTSYNC_P2_DONE {tar_out} ({tar_out.stat().st_size // 1024} KB)", flush=True)

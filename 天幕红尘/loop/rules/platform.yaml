@@ -1,0 +1,78 @@
+# 平台 / 算力 / 工具链规则（会随平台更新失效，last_checked 过旧就要重验）
+
+- id: P-FLOW-GUN-BLOCK
+  status: active
+  layer: 平台
+  symptom: Flow 拦截中枪、枪声画面（含蓄写法也拦）
+  root_cause: Google Flow 安全策略
+  scope: [flow, gunshot]
+  action:
+    process: 枪击镜头一律走 Wan；Flow 只做非暴力镜头
+  last_checked: 2026-11-08
+  evidence: [../.claude/state/current-focus.md]
+
+- id: P-FLOW-SAFE-PHRASING
+  status: active
+  layer: 平台
+  symptom: 「官员名+逮捕」「老人心脏病发作」「哭倒在地+葬礼」被拦
+  root_cause: Flow 关键词组合触发
+  scope: [flow]
+  action:
+    prompt: [fictional TV drama]
+    process: 政治逮捕台词加 fictional TV drama 说明；医疗/丧事画面写平和；双人对白音频失败先重试
+  last_checked: 2026-11-08
+  evidence: [../.claude/state/current-focus.md]
+
+- id: P-FLOW-CHAR-REF-MODEL
+  status: active
+  layer: 平台
+  symptom: Omni 1.2 Flash 挂不上角色
+  root_cause: 只有 Veo 3.1 Lite 支持角色参考（每条 8 秒，只挂一个）
+  scope: [flow, face_closeup]
+  action:
+    process: 人物镜头 Veo Lite 挂说话人；空镜群像 Omni
+  last_checked: 2026-11-08
+  evidence: [视频/flow_ep01_镜头表.md]
+
+- id: P-SHM-NO-MIX
+  status: active
+  layer: 平台
+  symptom: G4 /dev/shm 爆满
+  root_cause: Qwen-Image(~31GB)+Wan2.2(~35GB+页缓存) 超 88GB；unload 不清 shm
+  scope: [colab, qwen_i2i, wan]
+  action:
+    process: 阶段1 生图 → 下载质检 → stop_all → 阶段2 新 G4 跑 Scout+HD
+  last_checked: 2026-11-08
+  evidence: [视频/AI短剧制作经验总结.md#五.1]
+
+- id: P-COLAB-RESILIENCE
+  status: active
+  layer: 平台
+  symptom: 502/SSLEOFError 中断、忘关机持续扣费
+  root_cause: 网络不稳 + 无兜底
+  scope: [colab]
+  action:
+    process: 5 次指数退避；产物存在即 skip；70s keepalive；finally 必 stop_all 并确认 burn_rate_hourly==0.0
+  last_checked: 2026-11-08
+  evidence: [../EasyColab_自动化操作指南.md]
+
+- id: P-EDGE-TTS-RU
+  status: deprecated
+  layer: 平台
+  symptom: ru-RU-Dmitry +10% 返回空音频，播音腔
+  root_cause: edge-tts 参数缺陷
+  scope: [tts]
+  action:
+    process: 已改用 VoxCPM2，不再使用 edge-tts
+  evidence: [../.claude/state/current-focus.md]
+
+- id: P-INFINITETALK-PINS
+  status: candidate
+  layer: 平台
+  symptom: InfiniteTalk 依赖冲突
+  root_cause: 版本漂移
+  scope: [infinitetalk]
+  action:
+    params: {diffusers: 0.33.1, transformers: 4.49.0, xfuser: 0.4.1, huggingface_hub: 0.30.2, weights: /content/InfiniteTalk_weights/}
+  evidence: [视频/ab21]
+  note: 21 号 A/B 未定案，尚未进主管线

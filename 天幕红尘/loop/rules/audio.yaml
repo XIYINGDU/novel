@@ -1,0 +1,92 @@
+# 配音 / 口型 / 拟音 / 母带规则
+
+- id: A-ACTOR-BASE-VOICE
+  status: active
+  layer: 锚点
+  symptom: 同一角色各句声线漂移
+  root_cause: 每句独立采样，没有声线锚点
+  scope: [dialogue]
+  action:
+    process: VoxCPM2 先按固定 seed 铸 actor_<role>.wav，再以 reference_wav_path 克隆单句，情绪只用提示词控制
+    params: {seed: {罗家明: 1991, 叶子农: 1992, 库格列夫: 1993, 苏玉平: 1994, 库格列夫_en: 1995, 罗慧娟: 1996, 林雪红: 1997}}
+  evidence: [视频/ep01_p2/remote_voxcpm2_p2.py]
+
+- id: A-KEYLINE-MULTI-CANDIDATE
+  status: active
+  layer: 质检
+  symptom: 短促关键句气口/停顿不自然
+  root_cause: 短句采样方差大
+  scope: [dialogue, keyline]
+  action:
+    process: 关键句一次多种子出候选，人耳听选，结论记 defects.jsonl
+  evidence: [视频/AI短剧制作经验总结.md#四.1]
+
+- id: A-LIPSYNC-CLEAN-STEM
+  status: active
+  layer: 参数
+  symptom: 口型跟着电话对面声/旁白动
+  root_cause: speaker_stem 混入非本画面说话人
+  scope: [lipsync, phone_call]
+  action:
+    process: 25fps RIFE 预变速；stem 只含画面内开口者
+  evidence: [视频/ep01_p2/remote_latentsync_p2.py]
+
+- id: A-LIPSYNC-GUIDANCE-TIER
+  status: active
+  layer: 参数
+  symptom: 气声/呢喃镜头嘴张太大
+  root_cause: guidance 过高放大开合
+  scope: [lipsync]
+  action:
+    params: {guidance_scale: {清晰吐字: "1.6-1.8", 气声呢喃: "1.25-1.35"}, mask_margin: 36, tail_crossfade_s: 0.15}
+  evidence: [视频/ep01_p2/remote_latentsync_p2.py]
+
+- id: A-LIPSYNC-DARK-PRESEED
+  status: active
+  layer: 参数
+  symptom: 低照度镜头第 0 帧检不到脸，LatentSync 中断
+  root_cause: 首帧过黑
+  scope: [lipsync, night_lowlight]
+  action:
+    process: lipsync_pipeline.py 加 _preseed_det 预扫缓存人脸框
+  evidence: [视频/ep01_p2/remote_latentsync_p2.py]
+
+- id: A-ROOM-TONE-CONTINUOUS
+  status: active
+  layer: 后期
+  symptom: 台词切换处底噪断掉「死寂」
+  root_cause: 每句单独混音
+  scope: [dialogue, all_audio]
+  action:
+    process: 同一空间全程铺同一 room tone；电话音双阶滤波+轻压缩+-45dBFS 线路底噪
+  evidence: [视频/AI短剧制作经验总结.md#四.3]
+
+- id: A-FOLEY-RESTRAINT
+  status: active
+  layer: 后期
+  symptom: 枪声像动作片、倒地有木鼓共振
+  root_cause: 拟音素材默认夸张
+  scope: [gunshot, fall]
+  action:
+    process: 消音狙击只给低频胸腔闷击+布料轻裂，无火药爆音；倒地砍共振峰，只留鞋底擦石+布料+短低频；不该响的删
+  evidence: [视频/AI短剧制作经验总结.md#四.3]
+
+- id: A-MASTER-LOUDNESS
+  status: active
+  layer: 后期
+  symptom: 削波/响度不一
+  root_cause: 无统一母带约束
+  scope: [all_audio]
+  action:
+    params: {true_peak_dbfs: -1.5, alimiter_limit: 0.84, target_lufs: -19.2}
+  evidence: [视频/v13_fixes/build_v13.py]
+
+- id: A-SUBTITLE-SINGLE-LAYER
+  status: active
+  layer: 后期
+  symptom: 播放器双字幕叠字
+  root_cause: 成片旁放了同名 .srt
+  scope: [deliver]
+  action:
+    process: 字幕只烧进画面；.srt 归档在版本内 out/，成片目录 0 个 .srt
+  evidence: [视频/AI短剧制作经验总结.md#四.4]

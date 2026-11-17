@@ -1,0 +1,800 @@
+{
+ "terms": [
+  {
+   "term": "smiling",
+   "count": 17,
+   "shots": [
+    "15",
+    "17",
+    "18b",
+    "20",
+    "21a",
+    "21b",
+    "22",
+    "23",
+    "24",
+    "24b",
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json",
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "jpeg压缩残留",
+   "count": 6,
+   "shots": [
+    "01",
+    "18b",
+    "21b",
+    "22",
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json",
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "smile",
+   "count": 5,
+   "shots": [
+    "15",
+    "18b",
+    "21b",
+    "22",
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json",
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "cheerful grin",
+   "count": 5,
+   "shots": [
+    "14",
+    "15",
+    "21a",
+    "22",
+    "24b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json",
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "apron",
+   "count": 5,
+   "shots": [
+    "22",
+    "23",
+    "24"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "apartment",
+   "count": 3,
+   "shots": [
+    "18b",
+    "21b",
+    "22"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json",
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "teeth",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "white teeth",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "grinning",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "laughing",
+   "count": 2,
+   "shots": [
+    "15",
+    "18b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json",
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "happy",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "joyful",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "cheering",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "fist pump",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "standing up",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "brown bag",
+   "count": 2,
+   "shots": [
+    "18b",
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "morphing face",
+   "count": 2,
+   "shots": [
+    "22",
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "teeth laughing",
+   "count": 2,
+   "shots": [
+    "14",
+    "24b"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "standing upright",
+   "count": 3,
+   "shots": [
+    "18a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_fix_stills.py",
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "glass still upright untouched on table",
+   "count": 2,
+   "shots": [
+    "18a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "extra arm",
+   "count": 2,
+   "shots": [
+    "23"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "three hands",
+   "count": 2,
+   "shots": [
+    "23"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "turning around",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "face visible",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "side profile",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "wide crab straddle",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "jumping sideways",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "diving onto stairs",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "drunk swaying",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "car",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "muzzle flash",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "slow motion",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "brightness flare",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "exposure shift",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "warm flash",
+   "count": 2,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "bared teeth",
+   "count": 1,
+   "shots": [
+    "18b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "raising arm high",
+   "count": 1,
+   "shots": [
+    "18b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "open mouth laugh",
+   "count": 1,
+   "shots": [
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "warm smirk",
+   "count": 1,
+   "shots": [
+    "22"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "relaxed pleasant look",
+   "count": 1,
+   "shots": [
+    "22"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "extra limbs",
+   "count": 1,
+   "shots": [
+    "22"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "gentle grin",
+   "count": 1,
+   "shots": [
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "polite smirk",
+   "count": 1,
+   "shots": [
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "relaxed mouth corners",
+   "count": 1,
+   "shots": [
+    "24c"
+   ],
+   "files": [
+    "ep01_p2/hd_plan.json"
+   ]
+  },
+  {
+   "term": "glass sitting on table",
+   "count": 1,
+   "shots": [
+    "18a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_fix_stills.py"
+   ]
+  },
+  {
+   "term": "upright water glass on table",
+   "count": 1,
+   "shots": [
+    "18a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_fix_stills.py"
+   ]
+  },
+  {
+   "term": "two glasses",
+   "count": 1,
+   "shots": [
+    "18a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_fix_stills.py"
+   ]
+  },
+  {
+   "term": "broad smile",
+   "count": 1,
+   "shots": [
+    "14"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "smiling grin",
+   "count": 1,
+   "shots": [
+    "15"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "holding receiver firmly to ear",
+   "count": 1,
+   "shots": [
+    "15"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "holding telephone",
+   "count": 1,
+   "shots": [
+    "17"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "sitting smiling",
+   "count": 1,
+   "shots": [
+    "17"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "relaxed",
+   "count": 1,
+   "shots": [
+    "17"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "calm",
+   "count": 1,
+   "shots": [
+    "18b"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "hospital",
+   "count": 1,
+   "shots": [
+    "18b"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "people",
+   "count": 1,
+   "shots": [
+    "19"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "doctor",
+   "count": 1,
+   "shots": [
+    "19"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "sunny window",
+   "count": 1,
+   "shots": [
+    "19"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "warm living room",
+   "count": 1,
+   "shots": [
+    "19"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "lit red sign",
+   "count": 1,
+   "shots": [
+    "19"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "glowing red box",
+   "count": 1,
+   "shots": [
+    "19"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "cheerful",
+   "count": 1,
+   "shots": [
+    "20"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "mask already down under chin",
+   "count": 1,
+   "shots": [
+    "20"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "uncovered mouth",
+   "count": 1,
+   "shots": [
+    "20"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "mask still over mouth",
+   "count": 1,
+   "shots": [
+    "20"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "sunny curtains",
+   "count": 1,
+   "shots": [
+    "21a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "wood bookshelf",
+   "count": 1,
+   "shots": [
+    "21a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "standing tall",
+   "count": 1,
+   "shots": [
+    "21a"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "standing",
+   "count": 1,
+   "shots": [
+    "21b"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "crying loudly with open mouth",
+   "count": 1,
+   "shots": [
+    "22"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "heavy tears pouring",
+   "count": 1,
+   "shots": [
+    "22"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "two frontal faces",
+   "count": 1,
+   "shots": [
+    "24b"
+   ],
+   "files": [
+    "ep01_p2/stageB2_keyframes_p2.py"
+   ]
+  },
+  {
+   "term": "orange glow on ground",
+   "count": 1,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  },
+  {
+   "term": "orange glow",
+   "count": 1,
+   "shots": [
+    "01"
+   ],
+   "files": [
+    "v12_fixes/hd_plan.json"
+   ]
+  }
+ ],
+ "rerolled_shots": {
+  "18a": [
+   "ep01_p2/stageB2_fix_stills.py"
+  ],
+  "21b": [
+   "ep01_p2/hd_plan.json"
+  ],
+  "24c": [
+   "ep01_p2/hd_plan.json"
+  ]
+ }
+}
