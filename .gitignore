@@ -25,3 +25,16 @@ __pycache__/
 
 # loop: model weights are downloaded, not committed (see loop/README.md)
 天幕红尘/loop/tools/models/
+
+# 视频管线：媒体与渲染缓存不进 git（只提交代码、hd_plan、audio_meta、字幕归档、实验指标）
+天幕红尘/视频/**/*.mp4
+天幕红尘/视频/**/*.mov
+天幕红尘/视频/**/*.png
+天幕红尘/视频/**/*.jpg
+天幕红尘/视频/**/*.webp
+天幕红尘/视频/**/*.wav
+天幕红尘/视频/**/*.mp3
+天幕红尘/视频/**/*.log
+天幕红尘/视频/**/*.sha256
+天幕红尘/视频/**/concat*.txt
+天幕红尘/视频/**/*scout_ready.json

@@ -1,0 +1,31 @@
+[
+  {
+    "base_id": "01_hit_s1",
+    "id": "01_v12_hit",
+    "seed": 12111,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，turning around, face visible, side profile, wide crab straddle, jumping sideways, diving onto stairs, drunk swaying, car, muzzle flash, slow motion, brightness flare, exposure shift, orange glow on ground, warm flash",
+    "prompt": "Immediate real-time 35mm cinema continuation strictly from behind on the exact dark Paris street with steady constant dark exposure across every single frame (zero lighting flicker, zero orange flare, zero face turn, zero wide straddle). Struck instantaneously by an unseen bullet in the front chest on frame two, his walk arrests dead mid-step: knees dip sharply catching impact weight with narrow feet, upper back hunches abruptly in shock as chin drops toward his collar, and right elbow snaps sharply inward/forward clutching his chest cleanly."
+  },
+  {
+    "base_id": "01_hit_s1",
+    "id": "01_v12_hit_steady",
+    "seed": 12115,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，turning around, face visible, side profile, wide crab straddle, jumping sideways, diving onto stairs, drunk swaying, car, muzzle flash, slow motion, brightness flare, exposure shift, orange glow, warm flash",
+    "prompt": "Immediate real-time 35mm cinema continuation strictly from behind on the exact dark Paris street keeping ambient darkness strictly constant frame-to-frame (never brighter orange lighting). On frame two an unseen front-chest bullet stops his walk dead mid-stride: narrow knees flex down abruptly catching his weight, shoulders hunch forward in sharp recoil as head snaps low, and right arm bends sharply forward to clutch his front chest."
+  },
+  {
+    "base_id": "02a_s1",
+    "id": "02a_v12",
+    "seed": 12221
+  },
+  {
+    "base_id": "02b1_s2",
+    "id": "02b1_v12",
+    "seed": 12312
+  },
+  {
+    "base_id": "02b2_s1",
+    "id": "02b2_v12",
+    "seed": 12421
+  }
+]

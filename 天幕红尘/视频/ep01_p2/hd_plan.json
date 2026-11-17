@@ -1,0 +1,43 @@
+[
+  {"base_id": "14_s2", "id": "14"},
+  {"base_id": "15_s2", "id": "15"},
+  {"base_id": "16_s1", "id": "16"},
+  {"base_id": "17_s1", "id": "17"},
+  {"base_id": "18a_s1", "id": "18a"},
+  {"base_id": "18b_s2", "id": "18b"},
+  {"base_id": "19_s1", "id": "19"},
+  {"base_id": "20_s2", "id": "20"},
+  {"base_id": "21a_s1", "id": "21a"},
+  {
+    "base_id": "21b_s1",
+    "id": "21b_f1",
+    "seed": 9211,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，teeth, white teeth, bared teeth, smiling, smile, grinning, laughing, happy, joyful, cheering, raising arm high, fist pump, standing up, brown bag, apartment",
+    "prompt": "Devastating heartbreaking 1991 35mm close-up in sterile cold pale white hospital corridor on empty linoleum floor. Immediately her wet tearful eyes squeeze tightly shut in bitter sorrow, eyebrows furrowed steeply in grief, lips pressed tightly closed downward hiding teeth completely as she trembles weeping, chin dropping low toward her drawn knees while her heavy clenched fist drops softly down against the cold floor."
+  },
+  {
+    "base_id": "21b_s2",
+    "id": "21b_f2",
+    "seed": 9212,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，teeth, white teeth, open mouth laugh, smiling, smile, grinning, happy, joyful, cheering, fist pump, standing up, brown bag",
+    "prompt": "Muted solemn heartbreaking 1991 hospital hallway floor close-up under cold fluorescent light. Keeping mouth strictly closed without showing teeth, her trembling lower lip quivers in silent weeping as eyelids close shut tight with tears glinting on cheeks; she slowly bows her head low hiding her eyes toward her dark trousers while her hand drops limply onto the bare floor beside her leg."
+  },
+  {"base_id": "22_s2", "id": "22"},
+  {"base_id": "23_s1", "id": "23"},
+  {"base_id": "24a_s2", "id": "24a"},
+  {"base_id": "24b_s2", "id": "24b"},
+  {
+    "base_id": "24c_s1",
+    "id": "24c_f1",
+    "seed": 9241,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，smiling, smile, warm smirk, relaxed pleasant look, cheerful grin, extra limbs, morphing face",
+    "prompt": "Harsh unyielding 1991 35mm tight close-up in cold sterile fluorescent hospital corridor (dark blurred head shadow left foreground holds still). Strictly unsmiling with icy furrowed tension between brows and tight clenched jaw, the pale dry-eyed woman delivers fierce cold commands directly toward the listener, then holds a grim dead-serious silent stare without relaxing or softening."
+  },
+  {
+    "base_id": "24c_s2",
+    "id": "24c_f2",
+    "seed": 9242,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，smiling, smile, gentle grin, polite smirk, relaxed mouth corners, morphing face",
+    "prompt": "Controlled iron-willed 1991 film close-up in cold hospital night corridor lighting pushing fractionally closer. Keeping tight stern unsmiling jawline and piercing cold dry eyes, she speaks final urgent warning crisply, then sets her lips firmly shut in grim unbending resolve holding an intense solemn gaze through final seconds."
+  }
+]

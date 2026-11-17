@@ -1,0 +1,450 @@
+[
+  {
+    "id": "14",
+    "dur": 5.05,
+    "clip": "clip_14",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.65,
+        8.0
+      ],
+      [
+        2.2,
+        22.0
+      ],
+      [
+        3.8,
+        38.0
+      ],
+      [
+        5.05,
+        48.0
+      ]
+    ],
+    "subs": [
+      [
+        0.54,
+        4.93,
+        "（电话）罗破产了！昨晚在莫斯科办公室开枪自杀了！"
+      ]
+    ],
+    "lipsync_dur_sec": null,
+    "stamp": "次日　1991年8月25日　纽约",
+    "fade_in": true,
+    "fade_out": false
+  },
+  {
+    "id": "15",
+    "dur": 2.4,
+    "clip": "clip_15",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.15,
+        16.0
+      ],
+      [
+        2.4,
+        40.0
+      ]
+    ],
+    "subs": [
+      [
+        0.15,
+        1.38,
+        "哥——！"
+      ]
+    ],
+    "lipsync_dur_sec": 1.45,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "16",
+    "dur": 2.55,
+    "clip": "clip_16",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.85,
+        22.0
+      ],
+      [
+        2.55,
+        40.0
+      ]
+    ],
+    "subs": [
+      [
+        0.8,
+        2.4699999999999998,
+        "喂？！到底怎么回事？！"
+      ]
+    ],
+    "lipsync_dur_sec": 2.5,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "17",
+    "dur": 3.2,
+    "clip": "clip_17",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.3,
+        18.0
+      ],
+      [
+        3.2,
+        48.0
+      ]
+    ],
+    "subs": [
+      [
+        0.1,
+        2.8,
+        "（电话漏音）开枪自杀……人没了！"
+      ]
+    ],
+    "lipsync_dur_sec": null,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "18a",
+    "dur": 2.25,
+    "clip": "clip_18a",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.35,
+        3.0
+      ],
+      [
+        1.55,
+        34.0
+      ],
+      [
+        2.25,
+        40.0
+      ]
+    ],
+    "subs": [],
+    "lipsync_dur_sec": null,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "18b",
+    "dur": 4.2,
+    "clip": "clip_18b",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        4.2,
+        56.0
+      ]
+    ],
+    "subs": [
+      [
+        0.25,
+        4.08,
+        "妈——！慧娟！拿急救药！快叫救护车！！"
+      ]
+    ],
+    "lipsync_dur_sec": 4.12,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "19",
+    "dur": 2.15,
+    "clip": "clip_19",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.85,
+        6.0
+      ],
+      [
+        1.35,
+        22.0
+      ],
+      [
+        2.15,
+        32.0
+      ]
+    ],
+    "subs": [],
+    "lipsync_dur_sec": null,
+    "stamp": "同日夜　纽约",
+    "fade_in": true,
+    "fade_out": false
+  },
+  {
+    "id": "20",
+    "dur": 3.1,
+    "clip": "clip_20",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.35,
+        24.0
+      ],
+      [
+        3.1,
+        48.0
+      ]
+    ],
+    "subs": [],
+    "lipsync_dur_sec": null,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "21a",
+    "dur": 4.0,
+    "clip": "clip_21a",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.6,
+        30.0
+      ],
+      [
+        4.0,
+        48.0
+      ]
+    ],
+    "subs": [
+      [
+        0.18,
+        3.88,
+        "一天工夫，哥没了，妈也没了！"
+      ]
+    ],
+    "lipsync_dur_sec": 3.92,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "21b",
+    "dur": 4.75,
+    "clip": "clip_21b",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        2.9,
+        38.0
+      ],
+      [
+        4.75,
+        64.0
+      ]
+    ],
+    "subs": [
+      [
+        0.15,
+        4.63,
+        "还欠着一百多万美金的债，咱们孤儿寡母怎么活啊？！"
+      ]
+    ],
+    "lipsync_dur_sec": 2.45,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "22",
+    "dur": 2.85,
+    "clip": "clip_22",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.35,
+        24.0
+      ],
+      [
+        2.85,
+        48.0
+      ]
+    ],
+    "subs": [],
+    "lipsync_dur_sec": null,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "23",
+    "dur": 4.55,
+    "clip": "clip_23",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.2,
+        24.0
+      ],
+      [
+        4.55,
+        56.0
+      ]
+    ],
+    "subs": [
+      [
+        0.28,
+        4.43,
+        "别哭了！哭保不住曼哈顿的裕香阁饭店，更还不清债！"
+      ]
+    ],
+    "lipsync_dur_sec": 4.47,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "24a",
+    "dur": 4.95,
+    "clip": "clip_24a",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        4.95,
+        72.0
+      ]
+    ],
+    "subs": [
+      [
+        0.16,
+        4.83,
+        "听着，从现在起对外一律封锁死讯，妈的葬礼定在28号！"
+      ]
+    ],
+    "lipsync_dur_sec": 4.87,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "24b",
+    "dur": 7.9,
+    "clip": "clip_24b",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        2.7,
+        36.0
+      ],
+      [
+        5.3,
+        68.0
+      ],
+      [
+        7.9,
+        80.0
+      ]
+    ],
+    "subs": [
+      [
+        0.16,
+        4.803,
+        "你马上给莫斯科的库格列夫回电话，"
+      ],
+      [
+        4.853,
+        7.78,
+        "求他务必在那边办完火化，27号把你哥的骨灰、遗书，"
+      ]
+    ],
+    "lipsync_dur_sec": null,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": false
+  },
+  {
+    "id": "24c",
+    "dur": 5.95,
+    "clip": "clip_24c",
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        5.2,
+        68.0
+      ],
+      [
+        5.95,
+        80.0
+      ]
+    ],
+    "subs": [
+      [
+        0.16,
+        3.624,
+        "还有墙上挂着的那幅「见路不走」横幅一块儿带回纽约！"
+      ],
+      [
+        3.674,
+        5.25,
+        "剩下的事交给我！"
+      ]
+    ],
+    "lipsync_dur_sec": 5.3,
+    "stamp": null,
+    "fade_in": false,
+    "fade_out": true
+  }
+]

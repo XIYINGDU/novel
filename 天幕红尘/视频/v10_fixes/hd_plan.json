@@ -1,0 +1,34 @@
+[
+  {
+    "id": "01_v10",
+    "mode": "flf2v",
+    "start": "/Users/duxiying/Documents/novel/天幕红尘/视频/v10_fixes/stills/still_01_v10_a.png",
+    "end": "/Users/duxiying/Documents/novel/天幕红尘/视频/v10_fixes/stills/still_02b2_v10_start.png",
+    "frames": 49,
+    "seed": 10121,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，arms raised, hands up, waving, lifting hands above waist, elbows flared wide, hands behind back, clasped hands behind waist, turning around, face visible, profile face, car, automobile, vehicle, headlights, traffic, muzzle flash, sparks, blue sky, daylight, extra limbs",
+    "prompt": "Realistic 35mm midnight Paris thriller shot strictly from behind outside the glowing French restaurant doorway on an empty deserted boulevard (zero traffic, both arms stay low beside his hips and thighs throughout). For the first thirty frames he walks calmly forward two relaxed steps off the limestone steps onto the dark flagstones; abruptly mid-stride an unseen silent bullet strikes his front chest — his forward foot jams stiff, upper spine and shoulders jolt sharply backward then curl inward into a tight stunned chest-hunch as he freezes stiff on the flagstones into the hunched motionless end pose."
+  },
+  {
+    "id": "01_v10_alt",
+    "mode": "flf2v",
+    "start": "/Users/duxiying/Documents/novel/天幕红尘/视频/v10_fixes/stills/still_01_v10_a.png",
+    "end": "/Users/duxiying/Documents/novel/天幕红尘/视频/v10_fixes/stills/still_02b2_v10_start.png",
+    "frames": 49,
+    "seed": 10122,
+    "neg": "色调艳丽，过曝，静态，细节模糊不清，字幕，文字水印，整体发灰，最差质量，低质量，JPEG压缩残留，arms raised, hands up, waving, lifting hands above waist, elbows flared wide, hands behind back, clasped hands behind waist, turning around, face visible, profile face, car, automobile, vehicle, headlights, traffic, muzzle flash, sparks, blue sky, daylight, extra limbs",
+    "prompt": "Grounded 35mm Paris night crime cinema shot staying strictly behind the man in the white sweatshirt and dark trousers on empty restaurant steps (both arms strictly down beside thighs, never lifting elbows). He walks two unhurried silent steps onto the flagstones facing the dark multi-windowed building; suddenly hit cleanly in the center chest from ahead, his body absorbs a crisp shuddering impact shock — head jerks slightly, shoulders snap back an inch then slump rigid into the tight hunched stillness of the final frame."
+  },
+  {
+    "base_id": "02a_v10_s2",
+    "id": "02a_v10"
+  },
+  {
+    "base_id": "02b1_v10_s1",
+    "id": "02b1_v10"
+  },
+  {
+    "base_id": "02b2_v10_s1",
+    "id": "02b2_v10"
+  }
+]

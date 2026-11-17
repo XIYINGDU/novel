@@ -1,0 +1,807 @@
+[
+  {
+    "id": "01",
+    "clip": "v11:clip_01_v11_walk.mp4",
+    "kind": "video",
+    "dur": 2.5,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.75,
+        32.0
+      ]
+    ],
+    "fade_in": true,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": 1750,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null,
+    "chain_hit": {
+      "clip": "v13:clip_01_v13_hit.mp4",
+      "switch_sec": 1.75,
+      "tone_lock": "luma_v3",
+      "hit_curve": [
+        [
+          1.75,
+          0.0
+        ],
+        [
+          1.92,
+          8.5
+        ],
+        [
+          2.2,
+          14.0
+        ],
+        [
+          2.5,
+          17.5
+        ]
+      ]
+    }
+  },
+  {
+    "id": "02a",
+    "clip": "v13:clip_02a_v13.mp4",
+    "kind": "video",
+    "dur": 2.1,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.133,
+        2.0
+      ],
+      [
+        0.167,
+        10.0
+      ],
+      [
+        0.48,
+        15.0
+      ],
+      [
+        1.15,
+        24.0
+      ],
+      [
+        2.1,
+        32.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": 167,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "02b1",
+    "clip": "v13:clip_02b1_v13.mp4",
+    "kind": "video",
+    "dur": 1.7,
+    "subs": [
+      [
+        0.4,
+        1.66,
+        "还真他妈抬举我。"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.72,
+        16.0
+      ],
+      [
+        1.35,
+        29.0
+      ],
+      [
+        1.7,
+        32.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "02b2",
+    "clip": "v13:clip_02b2_v13.mp4",
+    "kind": "video",
+    "dur": 1.15,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        6.5
+      ],
+      [
+        0.16,
+        10.5
+      ],
+      [
+        0.5,
+        16.5
+      ],
+      [
+        1.15,
+        24.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "03",
+    "clip": "",
+    "kind": "card",
+    "dur": 3.4,
+    "subs": [],
+    "curve": null,
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": [
+      "一年前",
+      "1991年8月24日夜　莫斯科"
+    ]
+  },
+  {
+    "id": "04",
+    "clip": "v03:clip_04_v3.mp4",
+    "kind": "video",
+    "dur": 4.096,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        4.096,
+        80.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "05a",
+    "clip": "v07:clip_05a_v7.mp4",
+    "kind": "video",
+    "dur": 4.934,
+    "subs": [
+      [
+        0.18,
+        1.14,
+        "我是罗。"
+      ],
+      [
+        1.3199999999999998,
+        4.934,
+        "（电话）罗！秘密股东协议里的五个高官已经抓了三个！"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        4.934,
+        96.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": 4.934,
+    "card_lines": null
+  },
+  {
+    "id": "05_ins1",
+    "clip": "v03:clip_05_ins1.mp4",
+    "kind": "video",
+    "dur": 2.846,
+    "subs": [
+      [
+        0.0,
+        2.706,
+        "（电话）另外两个高官公子傍晚跑去瑞士了！"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        2.846,
+        50.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "05_ins2",
+    "clip": "v03:clip_05_ins2.mp4",
+    "kind": "video",
+    "dur": 5.956,
+    "subs": [
+      [
+        0.0,
+        5.896,
+        "（电话）美国石油公司刚撤回了那150口油井的收购意向，明天一早检察院就来贴封条！"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        5.956,
+        43.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "05c",
+    "clip": "v07:clip_05c_v7.mp4",
+    "kind": "video",
+    "dur": 8.404,
+    "subs": [
+      [
+        0.0,
+        2.584,
+        "（电话）罗，我那6万美金口头暗股怎么办？！"
+      ],
+      [
+        2.834,
+        7.154,
+        "知道了，库格列夫。明天再说吧。"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        2.584,
+        14.0
+      ],
+      [
+        7.154,
+        48.0
+      ],
+      [
+        7.724,
+        88.0
+      ],
+      [
+        8.404,
+        95.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": 7.234,
+    "card_lines": null
+  },
+  {
+    "id": "06_tv",
+    "clip": "v08:clip_06_tv_v8.mp4",
+    "kind": "video",
+    "dur": 1.9,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.9,
+        64.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "06a",
+    "clip": "v08:clip_06a_v8.mp4",
+    "kind": "video",
+    "dur": 2.28,
+    "subs": [
+      [
+        0.66,
+        1.66,
+        "这个笨蛋！"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        2.28,
+        68.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": 2.28,
+    "card_lines": null
+  },
+  {
+    "id": "06b",
+    "clip": "v03:clip_06b_v3.mp4",
+    "kind": "video",
+    "dur": 2.165,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        2.0
+      ],
+      [
+        0.95,
+        26.0
+      ],
+      [
+        2.165,
+        45.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": 995,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "07",
+    "clip": "v03:clip_07_v3.mp4",
+    "kind": "video",
+    "dur": 5.847,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.807,
+        50.0
+      ],
+      [
+        2.647,
+        72.0
+      ],
+      [
+        5.847,
+        96.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "08a",
+    "clip": "v03:clip_08a_v3.mp4",
+    "kind": "video",
+    "dur": 2.05,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        27.0
+      ],
+      [
+        1.2,
+        39.0
+      ],
+      [
+        2.05,
+        58.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "08b",
+    "clip": "v02:clip_08.mp4",
+    "kind": "video",
+    "dur": 3.16,
+    "subs": [
+      [
+        0.22,
+        2.64,
+        "喂？是家明吗？"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        3.16,
+        62.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": 3.16,
+    "card_lines": null
+  },
+  {
+    "id": "09a",
+    "clip": "v03:clip_09a_v3.mp4",
+    "kind": "video",
+    "dur": 5.29,
+    "subs": [
+      [
+        0.2,
+        4.14,
+        "（电话）家明？是你吗？怎么不说话呀？"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        2.2,
+        9.0
+      ],
+      [
+        3.85,
+        2.0
+      ],
+      [
+        5.29,
+        8.8
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.035,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "09b",
+    "clip": "v03:clip_09b_v3.mp4",
+    "kind": "video",
+    "dur": 2.45,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        31.0
+      ],
+      [
+        1.48,
+        18.0
+      ],
+      [
+        2.45,
+        4.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "10a",
+    "clip": "v07:clip_10a_v7.mp4",
+    "kind": "video",
+    "dur": 4.418,
+    "subs": [
+      [
+        2.25,
+        4.198,
+        "我撑不住了……"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        2.0
+      ],
+      [
+        0.38,
+        15.0
+      ],
+      [
+        1.65,
+        65.0
+      ],
+      [
+        2.05,
+        72.0
+      ],
+      [
+        4.418,
+        80.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.025,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "10b",
+    "clip": "v03:clip_10b_v3.mp4",
+    "kind": "video",
+    "dur": 6.092,
+    "subs": [
+      [
+        0.32,
+        5.732,
+        "我不能请求原谅，这不是可以原谅的事。"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        3.85,
+        52.0
+      ],
+      [
+        6.092,
+        66.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "11a",
+    "clip": "v03:clip_11a_v3.mp4",
+    "kind": "video",
+    "dur": 5.86,
+    "subs": [
+      [
+        0.42,
+        5.66,
+        "见路不走……可我现在能见到的，"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        5.86,
+        96.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": 5.86,
+    "card_lines": null
+  },
+  {
+    "id": "11b",
+    "clip": "v03:clip_11b_v3.mp4",
+    "kind": "video",
+    "dur": 6.69,
+    "subs": [
+      [
+        0.18,
+        6.14,
+        "只有一条死路……不走，也得走了……"
+      ]
+    ],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        6.69,
+        96.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": 6.69,
+    "card_lines": null
+  },
+  {
+    "id": "12a",
+    "clip": "v02:clip_12a.mp4",
+    "kind": "video",
+    "dur": 3.5,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        3.5,
+        64.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": 1150,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "12b",
+    "clip": "v03:clip_12b_v3.mp4",
+    "kind": "video",
+    "dur": 3.85,
+    "subs": [],
+    "curve": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        3.85,
+        79.0
+      ]
+    ],
+    "fade_in": false,
+    "fade_out": true,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": null
+  },
+  {
+    "id": "13",
+    "clip": "",
+    "kind": "card",
+    "dur": 2.966,
+    "subs": [],
+    "curve": null,
+    "fade_in": false,
+    "fade_out": false,
+    "crt_off_ms": null,
+    "jolt_ms": null,
+    "gunflash_ms": null,
+    "zoom_pct": 0.0,
+    "lipsync_dur_sec": null,
+    "card_lines": [
+      "天 幕 红 尘"
+    ]
+  }
+]
