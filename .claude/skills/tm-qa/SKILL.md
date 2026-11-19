@@ -9,7 +9,9 @@ description: 天幕红尘 出片质检与判定入账。Scout/HD/口型/配音/�
    有人脸的情绪镜头，再跑机器量尺（V-QA-FACE-METRIC）：
    `uv run -q --python 3.11 --with mediapipe==0.10.21 --with opencv-python-headless python 天幕红尘/loop/tools/face_metrics.py <clip...> --step 2`
    悲恸/冷硬镜头 `读成笑` 必须为 0。量尺和人眼不一致时，以人眼为准，并把分歧记下来（量尺本身也要校准）
-2. xiying 的看片意见原话也要入账，一条问题一行
+2. xiying 的看片意见原话也要入账，一条问题一行，加 `--source xiying`（计入分数卡「打回」）
+   出片脚本已自动跑量尺：情绪镜头读成笑 >0 会自动记一行 `source: machine, verdict: pending`。
+   逐条人眼复核：确认是问题 → 另记一行 open；量尺误报 → 记一行 verdict=rejected 并写原因（量尺校准用）
 3. 每条问题先「由表及里」问一次：这是哪一层的错？
    剧作 / 史实 / 分镜 / 锚点 / 提示词 / 参数 / 模型 / 后期 / 平台。
    如果是重抽或换种子才好的，fix 里要如实写「重抽」「换种子」，复盘靠它识别治标

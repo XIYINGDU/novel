@@ -27,7 +27,7 @@
     Wan 把 crying/sobbing 画成「眯眼咧嘴」的痛苦怪相，和笑共用嘴角横拉；
     真悲伤的读法靠内眉上抬（AU1+4）、嘴角下拉（AU15）、下巴皱（AU17），这些它不会自动给。
     负向词 smiling/laughing 一直在 NEG_BASE 里也没用，因为模型并不认为自己在画笑
-  scope: [emotion_negative, face_closeup, crying]
+  scope: [emotion_negative, crying]  # 2026-11-17 xiying 批：去掉 face_closeup，非哭戏近景不再误命中
   action:
     prompt: [inner eyebrows raised and pinched upward, mouth corners pulled down, chin trembling, lips closed, wet eyes open]
     process: >-

@@ -1,0 +1,1 @@
+{"roi": {"23": "right_0.46", "24a": "right_0.28"}, "guidance": {"21a": 1.55, "23": 1.55, "24a": 1.75}, "default_g": 1.55, "steps": 20, "in": "/content/lipsync_in.tar.gz", "out": "/content/lipsync_out.tar.gz"}

@@ -236,7 +236,7 @@
   {
     "id": "21a",
     "dur": 4.0,
-    "clip": "clip_21a",
+    "clip": "clip_21a_v3s3",
     "curve": [
       [
         0.0,
@@ -320,7 +320,7 @@
   {
     "id": "23",
     "dur": 4.55,
-    "clip": "clip_23",
+    "clip": "clip_23_v3s2",
     "curve": [
       [
         0.0,
@@ -350,7 +350,7 @@
   {
     "id": "24a",
     "dur": 4.95,
-    "clip": "clip_24a",
+    "clip": "clip_24a_v3s3",
     "curve": [
       [
         0.0,

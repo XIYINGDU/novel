@@ -10,7 +10,8 @@ description: 天幕红尘 闭环复盘与规则升级。一段/一集交付后�
 ```
 L() { uv run -q --with pyyaml python 天幕红尘/loop/tools/loop.py "$@"; }
 L lint
-L retro --since <上次复盘日期>
+L retro --since <上次复盘日期>      # 末尾自带「管线层（自我递归）提案」
+L score --seg <段>                 # 分数卡，与上一段对比（成片时 hooks.after_build 已自动跑过一次）
 python3 天幕红尘/loop/tools/mine_history.py 天幕红尘/视频 > 天幕红尘/loop/ledger/mined.json
 ```
 上次复盘日期见 `天幕红尘/loop/ledger/retro/` 最新文件名。
@@ -22,9 +23,17 @@ python3 天幕红尘/loop/tools/mine_history.py 天幕红尘/视频 > 天幕红�
 - **去粗取精**：重复负向词合并；闲置且与别条重叠的规则合并或退役；经验文档里过时的说法标注
 
 ## 3. 管线层自省（递归）
-问：这轮有没有缺陷是因为 loop 本身不够用？比如标签缺、字段缺、retro 误判、skill 步骤含糊。有就把 loop/ 的改动也列进提案。
+先读 retro 输出的「管线层」段：规则误命中（overrides.jsonl）、从未被命中的规则、脚本复制、云端耗时瓶颈与失败率、分数退步。
+再问：这轮有没有缺陷是因为 loop 本身不够用？比如标签缺、字段缺、retro 误判、skill 步骤含糊。有就把 loop/ 的改动也列进提案。
+
+## 3.2 用分数判进化
+新转正的规则要在下一段的分数卡上见效（每镜尝试↓、每秒成片 CU↓、xiying 打回↓）。连续两段没见效的 active 规则，提议降回 candidate 或退役。
 
 ## 3.5 花钱之前先做零成本前测
+**自动额度**：`loop/budget.yaml`（默认单次 ≤2 CU、每天 ≤5 CU）以内的候选规则回归 / golden 回归，vm 可以不问直接跑，
+用 `ColabPool(..., auto=True)`，超额会被拒绝、看门狗超额强制关机；跑完在复盘里报告花了多少。超出额度或正式出片，照常先问。
+`L budget` 看今日已用。
+
 凡是要开 G4 的回归，先用本地已有素材检验假设：face_metrics、接触表、对比原图链路的每一环（锚点 → 关键帧 → 视频）。
 假设在前测里被证伪，就不开 G4，改去测真正的根因。2026-11-17 的例子：「锚点微笑泄漏」在前测中被证伪，原计划 2 次 G4 缩成 1 次，测的也是另一个变量。
 实验记录写在 `天幕红尘/loop/ledger/experiments/`。

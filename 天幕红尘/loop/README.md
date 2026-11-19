@@ -28,6 +28,18 @@
 2. 集层：一集（或一段）交付 → `/tm-retro` 复盘 → 规则提案
 3. 管线层：复盘也审视规则库和工具本身（字段不够、标签缺失、工具误判）→ 改 `loop/` 自身。改动同样走「提案 → xiying 批」
 
+## 自动化：环自己转（2026-11-18）
+
+| 层 | 触发 | 做什么 | 落点 |
+|---|---|---|---|
+| 自我迭代 | `ColabPool` 退出 | 每次云端运行自动记账：任务、失败、墙钟、机时、估算 CU | `ledger/runs.jsonl` |
+| 自我迭代 | 出片脚本调 `hooks.after_render` | 自动跑表情量尺；情绪镜头读成笑 → 机器旗标（pending，待人眼复核） | `ledger/metrics/`、`defects.jsonl` |
+| 自我进化 | 成片脚本调 `hooks.after_build` | 记成片时长 → 分数卡 → 自动复盘报告 | `ledger/scores.jsonl`、`retro/*_auto.md` |
+| 自我递归 | `retro` 末段 | 规则误命中、从未命中的规则、脚本复制、耗时瓶颈、分数退步 → 管线改进提案 | 复盘报告 |
+| 花钱闸门 | `ColabPool(auto=True / max_cu=)` | 自动回归先查额度；看门狗超额强制关机 | `budget.yaml` |
+
+分数卡四个核心数：每镜尝试次数、每秒成片 CU、云端墙钟、xiying 打回（`qa --source xiying`）。规则好不好，看下一段这几个数。
+
 ## 自我升级的闸门
 
 - 新规则一律以 `candidate` 进库，写 `regress` 回归镜头
@@ -42,7 +54,7 @@
 
 常用标签：`face_closeup` `emotion_negative` `back_view` `hands` `prop_closeup` `text_sign` `action_multi_pose`
 `precise_end_state` `flf2v` `gunshot` `fall` `dialogue` `keyline` `lipsync` `phone_call` `night_lowlight` `scene_change`
-`flow` `colab` `qwen_i2i` `wan` `char:<名>` `prop:<名>` `flashback` `deliver`
+`coldopen` `flow` `colab` `qwen_i2i` `wan` `char:<名>` `prop:<名>` `flashback` `deliver`
 
 ## 命令
 
@@ -52,6 +64,9 @@ L lint
 L compile --kind video --tags face_closeup,emotion_negative,crying,char:罗慧娟 --ep 01
 L qa --ep 01 --shot 25 --version p3-v0.1 --stage scout --tag wrong_expression --symptom "..." --layer 提示词 --rule V-GRIEF-AU-PROMPT
 L retro --since 2026-11-17
+L score --seg p3            # 分数卡
+L override --rule V-XXX --shot 7c --reason "..."   # compile 命中但不采用
+L budget                    # 自动额度
 python3 天幕红尘/loop/tools/mine_history.py 天幕红尘/视频 > 天幕红尘/loop/ledger/mined.json   # 挖历史负向词：这是「担心」的证据，不是「缺陷」的证据
 uv run -q --python 3.11 --with mediapipe==0.10.21 --with opencv-python-headless python 天幕红尘/loop/tools/face_metrics.py <clip...>   # 表情量尺
 ```

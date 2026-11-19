@@ -1,0 +1,9 @@
+{
+ "_note": "vm 2026-11-18 按客观依据选（xiying 授权「按建议」）；xiying 听后可改",
+ "dai_7i": {"pick": "dai_7i_t2", "why": "两条 ASR 都对；t1 11.0s 偏拖（3.7字/s），t2 8.6s 节奏自然"},
+ "dai_8l_a": {"pick": "dai_8l_a_t4", "why": "「见路不走」medium ASR 识别正确；t1 小模型听成「见路不早」，t3 字字断开；t4 10.7s 比 t2 12.0s 紧凑"},
+ "dai_8p": {"pick": "dai_8p_t1", "why": "两条 medium ASR 都对；小模型 t1 0.96 > t2 0.92"},
+ "liang_8q": {"pick": "liang_8q_t2", "why": "t1 1.6s 7.5字/s 偏赶；t2 1.9s"},
+ "director_8g": {"pick": "director_8g_t3", "why": "三条 ASR 都听成哈/啊（单音节 ASR 不可靠）；t3 拖长音最像隔棚喊停，放远场混响；必须人耳确认，不行改环境音"},
+ "liang_8j_b": {"pick": "liang_8j_b", "why": "重配后「纽约老九，十二万」ASR 正确"}
+}

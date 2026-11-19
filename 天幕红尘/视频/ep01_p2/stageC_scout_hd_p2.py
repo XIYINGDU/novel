@@ -27,7 +27,7 @@ sys.path.insert(0, str(VID_ROOT / "common"))
 
 import stage2_clips_v09 as s2v9
 import stage2_scout_hd_v10 as s2v10
-from colab_pool import ColabPool, Worker
+from colab_pool import ColabPool, Worker, hooks
 
 P2 = VID_ROOT / "ep01_p2"
 STILL_DIR = P2 / "stills"
@@ -246,7 +246,8 @@ def main():
     scout_ready_flag = P2 / "scout_ready.json"
     default_jobs = make_default_scout_jobs()
 
-    with ColabPool(n=n, setup=setup_wan) as pool:
+    stage = "scout" if mode_arg == "--scout" else ("hd" if mode_arg == "--hd" else "scout+hd")
+    with ColabPool(n=n, setup=setup_wan, seg="p2", stage=stage) as pool:
         if mode_arg in ("--scout", "--warm-pipeline"):
             if hd_plan_path.exists():
                 hd_plan_path.unlink()
@@ -259,6 +260,7 @@ def main():
             scout_ready_flag.write_text(json.dumps({"sheets": sheets, "failed": failed, "ready_at": time.time()},
                                                    ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"[SCOUT DONE] {len(sheets)} 张接触表；失败 {list(failed) or '无'}", flush=True)
+            hooks.after_render("p2", "01", "scout", [SCOUT_DIR / f"clip_{j[0]}.mp4" for j in scout_jobs if j[0] in res])
 
         if mode_arg == "--warm-pipeline":
             print("[WAIT-APPROVAL] 机器保温，最多等 600s 的 hd_plan.json...", flush=True)
@@ -277,6 +279,7 @@ def main():
             print(f"[HD] {len(hd_jobs)} 个 1280x720 镜头，{len(pool.workers)} 台并行...", flush=True)
             res, failed = pool.run(hd_jobs, lambda w, j: make_p2_sheet(render(w, j, 1280, 720, CLIP_DIR, "p2hd")))
             print(f"[HD DONE] {len(res)} 个完成；失败 {list(failed) or '无'}", flush=True)
+            hooks.after_render("p2", "01", "hd", [CLIP_DIR / f"clip_{j[0]}.mp4" for j in hd_jobs if j[0] in res])
 
 
 if __name__ == "__main__":

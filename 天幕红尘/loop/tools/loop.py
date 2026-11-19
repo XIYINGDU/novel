@@ -8,9 +8,13 @@
   qa --ep 01 --shot 21b --version p2-v0.2 --stage scout --tag wrong_expression \
      --symptom "..." --layer 锚点 [--rule ID] [--fix "..."] [--verdict open|fixed|accepted]
                                记一条判定到 ledger/defects.jsonl
-  retro [--since 2026-11-01]   由表及里：按层归因、找治标不治本、找无规则缺陷、找失效/闲置规则
+  retro [--since 2026-11-01]   由表及里：按层归因、找治标不治本、找无规则缺陷、找失效/闲置规则；
+                               管线层（自我递归）：规则误命中、脚本复制、耗时瓶颈、失败率、分数退步
+  score --seg p3               自我进化的分数卡：每镜尝试次数、每秒成片 CU、墙钟、xiying 打回数；与上一段对比
+  override --rule ID --shot 7c --reason "..."   记一次「compile 命中但不采用」（规则作用域的证据）
+  budget                       自动运行额度与今日已用
 """
-import argparse, datetime as dt, json, re, sys
+import argparse, ast, datetime as dt, hashlib, json, re, sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -20,6 +24,20 @@ LOOP = Path(__file__).resolve().parents[1]
 TM = LOOP.parent
 RULES = LOOP / "rules"
 LEDGER = LOOP / "ledger" / "defects.jsonl"
+RUNS = LOOP / "ledger" / "runs.jsonl"
+SCORES = LOOP / "ledger" / "scores.jsonl"
+OVERRIDES = LOOP / "ledger" / "overrides.jsonl"
+COMPILE_LOG = LOOP / "ledger" / "compile_log.jsonl"
+VID = TM / "视频"
+
+
+def _jsonl(p):
+    return [json.loads(l) for l in p.read_text().splitlines() if l.strip()] if p.exists() else []
+
+
+def _append(p, row):
+    with p.open("a") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
 REQUIRED = ["id", "status", "layer", "symptom", "root_cause", "scope"]
 STATUSES = {"active", "candidate", "deprecated"}
 KIND_ALL = {"video": "all_video", "audio": "all_audio", "script": "all_script"}
@@ -114,6 +132,8 @@ def cmd_compile(a):
     tags = {t.strip() for t in a.tags.split(",") if t.strip()}
     tags.add(KIND_ALL[a.kind])
     hit = [r for r in load_rules() if r.get("status") != "deprecated" and scope_hit(r.get("scope", []), tags, a.ep)]
+    _append(COMPILE_LOG, {"ts": dt.datetime.now().isoformat(timespec="seconds"), "kind": a.kind, "ep": a.ep,
+                           "tags": sorted(tags), "hit": [r["id"] for r in hit]})
     prompt, neg, params, process = [], [], {}, []
     for r in hit:
         act = r.get("action") or {}
@@ -149,7 +169,7 @@ def cmd_compile(a):
 def cmd_qa(a):
     row = {"date": dt.date.today().isoformat(), "ep": a.ep, "shot": a.shot, "version": a.version,
            "stage": a.stage, "frames": a.frames, "tag": a.tag, "symptom": a.symptom, "cause_layer": a.layer,
-           "rule": a.rule, "fix": a.fix, "verdict": a.verdict, "source": "qa"}
+           "rule": a.rule, "fix": a.fix, "verdict": a.verdict, "source": a.source}
     rid = {r["id"] for r in load_rules()}
     if a.rule and a.rule not in rid:
         print(f"WARN 规则 {a.rule} 不存在——复盘时会当作「无规则缺陷」", file=sys.stderr)
@@ -207,6 +227,118 @@ def cmd_retro(a):
     idle = [i for i, r in rules.items() if r["status"] == "active" and i not in cited and r["_file"] in ("video.yaml", "audio.yaml")]
     print("\n## 闲置规则（从未被缺陷引用；不必删，但下次复盘看是否冗余）")
     print("- " + ", ".join(idle) if idle else "- （无）")
+    pending = [d for d in ds if d.get("verdict") == "pending"]
+    if pending:
+        print(f"\n## 待人眼复核的机器旗标（{len(pending)}）")
+        for d in pending:
+            print(f"- {d['version']}/{d['shot']} {d['symptom']}")
+    pipeline_review(a.since, rules)
+    return 0
+
+
+def pipeline_review(since, rules):
+    """管线层（自我递归）：审视规则库和工具本身。每条都是提案，不是动作。"""
+    print("\n# 管线层（自我递归）提案")
+    # 1. 规则误命中：override 记录
+    ov = [o for o in _jsonl(OVERRIDES) if not since or o["date"] >= since]
+    by = defaultdict(list)
+    for o in ov:
+        by[o["rule"]].append(f"{o['shot']}（{o['reason']}）")
+    print("\n## 规则误命中（compile 命中但被弃用 → 作用域可能过宽）")
+    print("\n".join(f"- {r}: {len(v)} 次 {v[:3]}" for r, v in by.items()) or "- （无）")
+    # 2. 从未被 compile 命中的非废弃规则
+    hits = Counter(h for c in _jsonl(COMPILE_LOG) for h in c["hit"])
+    if hits:
+        never = [i for i, r in rules.items() if r["status"] != "deprecated" and i not in hits and r["_file"] in ("video.yaml", "audio.yaml")]
+        print("\n## 从未被 compile 命中的规则（标签可能写错，或已无用）")
+        print("- " + ", ".join(never) if never else "- （无）")
+    # 3. 脚本复制：同名同体函数出现在多个文件
+    print("\n## 脚本复制（同一函数在多个文件 → 抽到 视频/common/）")
+    seen = defaultdict(set)
+    for f in VID.rglob("*.py"):
+        if "regress" in f.parts or "common" in f.parts:
+            continue
+        try:
+            tree = ast.parse(f.read_text())
+        except Exception:
+            continue
+        for n in ast.walk(tree):
+            if isinstance(n, ast.FunctionDef) and len(n.body) >= 2 and n.name not in ("main", "forward") and not n.name.startswith("__"):
+                h = hashlib.md5(ast.dump(n).encode()).hexdigest()[:8]
+                seen[(n.name, h)].add(str(f.relative_to(VID)))
+    dup = sorted(((k, v) for k, v in seen.items() if len(v) > 1), key=lambda x: -len(x[1]))
+    print("\n".join(f"- {k[0]}() ×{len(v)}: {sorted(v)[:3]}" for k, v in dup[:10]) or "- （无）")
+    by_name = defaultdict(set)
+    for (name, _), files in seen.items():
+        by_name[name] |= files
+    sus = sorted(((n, f) for n, f in by_name.items() if len(f) >= 3), key=lambda x: -len(x[1]))
+    if sus:
+        print("- 疑似（同名函数 ≥3 个文件，内容有差异，多半是复制后小改）：")
+        print("\n".join(f"  - {n}() ×{len(f)}" for n, f in sus[:10]))
+    # 4. 耗时与失败
+    rs = [r for r in _jsonl(RUNS) if r.get("stage") != "build" and (not since or r["ts"][:10] >= since)]
+    if rs:
+        print("\n## 云端运行：耗时瓶颈与失败率")
+        agg = defaultdict(lambda: [0, 0, 0, 0.0])
+        for r in rs:
+            g = agg[r["stage"]]
+            g[0] += r["wall_s"]; g[1] += r["jobs"]; g[2] += r["failed"]; g[3] += r["cu_est"]
+        tot = sum(g[0] for g in agg.values()) or 1
+        for st, (w, j, fl, cu) in sorted(agg.items(), key=lambda x: -x[1][0]):
+            warn = "  ⚠ 失败率 >10%" if j and fl / j > 0.1 else ""
+            print(f"- {st}: 墙钟 {w / 60:.0f} 分（{w / tot:.0%}），{j} 任务 {fl} 失败，约 {cu:.1f} CU{warn}")
+    # 5. 分数退步
+    sc = _jsonl(SCORES)
+    if len(sc) >= 2:
+        prev, cur = sc[-2], sc[-1]
+        worse = [k for k in ("attempts_per_shot", "cu_per_final_s", "rejects_per_min") if
+                 cur.get(k) is not None and prev.get(k) is not None and cur[k] > prev[k] * 1.1]
+        print(f"\n## 分数对比 {prev['seg']} → {cur['seg']}")
+        print(f"- 变差：{worse}（查这期间新转正的规则是否无效）" if worse else "- 没有变差的指标")
+
+
+def cmd_score(a):
+    seg = a.seg
+    rs = [r for r in _jsonl(RUNS) if r.get("seg") == seg]
+    ds = [d for d in load_defects() if d.get("version", "").startswith(seg)]
+    builds = [r for r in rs if r.get("stage") == "build"]
+    work = [r for r in rs if r.get("stage") != "build"]
+    final_s = builds[-1]["final_s"] if builds else None
+    hd_jobs = sum(r["jobs"] for r in work if r["stage"] == "hd")
+    gen_jobs = sum(r["jobs"] for r in work if r["stage"] in ("scout", "hd"))
+    cu = sum(r["cu_est"] for r in work)
+    wall_h = sum(r["wall_s"] for r in work) / 3600
+    rejects = sum(1 for d in ds if d.get("source") == "xiying" and d.get("verdict") in ("open", "rejected"))
+    row = {"date": dt.date.today().isoformat(), "seg": seg, "final_s": final_s,
+           "attempts_per_shot": round(gen_jobs / hd_jobs, 2) if hd_jobs else None,
+           "cu_total": round(cu, 2), "cu_per_final_s": round(cu / final_s, 3) if final_s else None,
+           "gpu_wall_h": round(wall_h, 2), "xiying_rejects": rejects,
+           "rejects_per_min": round(rejects / (final_s / 60), 2) if final_s else None,
+           "machine_flags": sum(1 for d in ds if d.get("source") == "machine")}
+    print(f"# 分数卡 {seg}")
+    labels = {"final_s": "成片秒数", "attempts_per_shot": "每镜尝试（Scout+HD 任务 / HD 镜）", "cu_total": "云端 CU",
+              "cu_per_final_s": "每秒成片 CU", "gpu_wall_h": "云端墙钟（小时）", "xiying_rejects": "xiying 打回",
+              "rejects_per_min": "每分钟打回", "machine_flags": "机器旗标"}
+    prev = next((s for s in reversed(_jsonl(SCORES)) if s["seg"] != seg), None)
+    for k, lab in labels.items():
+        cmp = f"（上一段 {prev['seg']}: {prev.get(k)}）" if prev else ""
+        print(f"- {lab}: {row[k] if row[k] is not None else '—'} {cmp}")
+    if not a.dry:
+        _append(SCORES, row)
+    return 0
+
+
+def cmd_override(a):
+    _append(OVERRIDES, {"date": dt.date.today().isoformat(), "rule": a.rule, "shot": a.shot, "reason": a.reason})
+    print("记入 overrides.jsonl", a.rule, a.shot)
+    return 0
+
+
+def cmd_budget(a):
+    sys.path.insert(0, str(Path(__file__).parent))
+    import hooks
+    b = hooks.load_budget()
+    print(f"单次自动上限 {b['auto_cu_per_run']} CU；每日 {b['auto_cu_per_day']} CU；今日自动已用 {hooks.auto_spent_today():.2f} CU")
     return 0
 
 
@@ -225,11 +357,21 @@ def main():
     q.add_argument("--frames")
     q.add_argument("--rule")
     q.add_argument("--fix", default="")
-    q.add_argument("--verdict", choices=["open", "fixed", "accepted"], default="open")
+    q.add_argument("--verdict", choices=["open", "fixed", "accepted", "pending", "rejected"], default="open")
+    q.add_argument("--source", choices=["qa", "xiying", "machine"], default="qa",
+                   help="xiying=看片打回（计入分数卡）；machine=量尺旗标")
     r = sp.add_parser("retro")
     r.add_argument("--since")
+    s_ = sp.add_parser("score")
+    s_.add_argument("--seg", required=True)
+    s_.add_argument("--dry", action="store_true", help="只看不入账")
+    o = sp.add_parser("override")
+    for k in ("rule", "shot", "reason"):
+        o.add_argument(f"--{k}", required=True)
+    sp.add_parser("budget")
     a = ap.parse_args()
-    sys.exit({"lint": cmd_lint, "compile": cmd_compile, "qa": cmd_qa, "retro": cmd_retro}[a.cmd](a))
+    sys.exit({"lint": cmd_lint, "compile": cmd_compile, "qa": cmd_qa, "retro": cmd_retro, "score": cmd_score,
+              "override": cmd_override, "budget": cmd_budget}[a.cmd](a))
 
 
 if __name__ == "__main__":

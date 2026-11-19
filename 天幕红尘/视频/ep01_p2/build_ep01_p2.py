@@ -31,6 +31,9 @@ sys.path.insert(0, str(V13_DIR))
 
 import build_v13 as bv13  # noqa: E402
 
+sys.path.insert(0, str(VID_ROOT / "common"))
+import segbuild as sb  # noqa: E402
+
 SR = bv13.SR
 W, H = bv13.W, bv13.H
 FPS_FINAL = bv13.FPS_FINAL
@@ -46,13 +49,12 @@ LS_IN_DIR = P2_ROOT / "lipsync_in"
 LS_OUT_DIR = P2_ROOT / "lipsync_out"
 OUT_DIR = P2_ROOT / "out"
 
-for d in (MIX_DIR, SHOT_DIR, LS_IN_DIR, LS_OUT_DIR, OUT_DIR):
-    d.mkdir(parents=True, exist_ok=True)
+SEG = sb.Seg(P2_ROOT, "p2")  # 目录与上面常量一致
 
 META_PATH = P2_ROOT / "audio_meta_p2.json"
-V13_FINAL_MP4 = VID_ROOT / "第01集_开篇试片_v0.13.mp4"
-P2_FINAL_MP4 = VID_ROOT / "第01集_续段1-5至1-6_v0.2.mp4"  # v0.2: 21b 换 AU 提示词版（2026-11-17 回归）
-COMBINED_FINAL_MP4 = VID_ROOT / "第01集_试片1-1至1-6_v0.15.mp4"
+V13_FINAL_MP4 = VID_ROOT / "第01集_p1_1-1至1-4_v13.mp4"
+P2_FINAL_MP4 = VID_ROOT / "第01集_p2_1-5至1-6_v3.mp4"  # v3: 21a/23/24a 返修 + -19.2 LUFS（2026-11-18）；v2 在 旧版/
+COMBINED_FINAL_MP4 = VID_ROOT / "旧版" / "第01集_合片_1-1至1-6_v15.mp4"  # 已被 p3 合片取代
 
 
 def load_p2_voice(fname: str) -> AudioSegment:
@@ -110,77 +112,14 @@ def make_p2_ambience(kind: str, dur_ms: int) -> AudioSegment:
     return base.apply_gain(-38.5 - base.dBFS)
 
 
-def draw_corner_stamp(img: Image.Image, text: str, alpha_scale: float = 1.0) -> Image.Image:
-    """Subtle top-left location/time stamp matching v0.13 typography without touching bottom subtitle zone."""
-    if alpha_scale <= 0.01:
-        return img
-    rgba = img.convert("RGBA")
-    overlay = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    font = bv13.load_cjk_font(24, serif=True)
-    x, y = 44, 34
-    a_fill = int(round(235 * alpha_scale))
-    a_shd = int(round(170 * alpha_scale))
-    draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0, a_shd))
-    draw.text((x, y), text, font=font, fill=(242, 238, 228, a_fill))
-    return Image.alpha_composite(rgba, overlay).convert("RGB")
-
-
-def find_split_pause_ms(seg: AudioSegment, lo_ratio: float = 0.40, hi_ratio: float = 0.62) -> int:
-    lo = int(len(seg) * lo_ratio)
-    hi = int(len(seg) * hi_ratio)
-    best_ms = (lo + hi) // 2
-    best_db = 999.0
-    for ms in range(lo, hi, 30):
-        db = seg[ms : ms + 70].dBFS
-        if db < best_db:
-            best_db = db
-            best_ms = ms + 35
-    return best_ms
+draw_corner_stamp = sb.draw_corner_stamp
+find_split_pause_ms = sb.find_split_pause_ms
 
 
 def build_p2_spec() -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
     """Assemble exact 15-shot spec & audio stems matching Scenes 1-5 & 1-6 verbatim."""
-    specs: list[dict] = []
-    ls_stems: list[tuple[str, AudioSegment]] = []
-
-    def add_shot(
-        sid: str,
-        dur: float,
-        clip_name: str,
-        curve: list[tuple[float, float]],
-        subs: list[tuple[float, float, str]],
-        mix: AudioSegment,
-        ls_stem: AudioSegment | None = None,
-        ls_dur: float | None = None,
-        stamp: str | None = None,
-        fade_in: bool = False,
-        fade_out: bool = False,
-    ):
-        total_ms = int(round(dur * 1000))
-        if len(mix) < total_ms:
-            mix = mix + AudioSegment.silent(total_ms - len(mix), frame_rate=SR)
-        elif len(mix) > total_ms:
-            mix = mix[:total_ms]
-        mix = mix.fade_in(10).fade_out(14)
-        mix.export(MIX_DIR / f"shot_{sid}.wav", format="wav")
-        if ls_stem is not None:
-            stem_ms = int(round((ls_dur if ls_dur is not None else dur) * 1000))
-            st = ls_stem[:stem_ms] if len(ls_stem) >= stem_ms else (ls_stem + AudioSegment.silent(stem_ms - len(ls_stem), frame_rate=SR))
-            ls_stems.append((sid, st))
-        specs.append(
-            {
-                "id": sid,
-                "dur": dur,
-                "clip": clip_name,
-                "curve": curve,
-                "subs": subs,
-                "lipsync_dur_sec": ls_dur,
-                "stamp": stamp,
-                "fade_in": fade_in,
-                "fade_out": fade_out,
-            }
-        )
+    book = sb.ShotBook(SEG)
+    specs, ls_stems, add_shot = book.specs, book.ls_stems, book.add
 
     # Shot 14: Hui listens on phone -> turns horrified (kug_15_panic_en_t2 = 4.48s)
     kug_panic = bv13.apply_telephone_earpiece(load_p2_voice("kug_15_panic_en_t2.mp3"), target_dbfs=-19.0, gentle=True)
@@ -308,7 +247,7 @@ def build_p2_spec() -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
     )
     stem_21a = AudioSegment.silent(int(dur_21a * 1000), frame_rate=SR).overlay(hui_21a, position=180)
     add_shot(
-        "21a", dur_21a, "clip_21a",
+        "21a", dur_21a, "clip_21a_v3s3",  # v3：首帧去笑 + AU 提示词（2026-11-18）
         [(0.0, 0.0), (1.6, 30.0), (dur_21a, 48.0)],
         [(0.18, dur_21a - 0.12, "一天工夫，哥没了，妈也没了！")],
         mix_21a, ls_stem=stem_21a, ls_dur=dur_21a - 0.08,
@@ -351,7 +290,7 @@ def build_p2_spec() -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
     )
     stem_23 = AudioSegment.silent(int(dur_23 * 1000), frame_rate=SR).overlay(lin_23, position=280)
     add_shot(
-        "23", dur_23, "clip_23",
+        "23", dur_23, "clip_23_v3s2",  # v3：慧娟改回长发圆领
         [(0.0, 0.0), (1.2, 24.0), (dur_23, 56.0)],
         [(0.28, dur_23 - 0.12, "别哭了！哭保不住曼哈顿的裕香阁饭店，更还不清债！")],
         mix_23, ls_stem=stem_23, ls_dur=dur_23 - 0.08,
@@ -363,7 +302,7 @@ def build_p2_spec() -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
     mix_24a = make_p2_ambience("ny_hospital", int(dur_24a * 1000)).overlay(lin_24a, position=160)
     stem_24a = AudioSegment.silent(int(dur_24a * 1000), frame_rate=SR).overlay(lin_24a, position=160)
     add_shot(
-        "24a", dur_24a, "clip_24a",
+        "24a", dur_24a, "clip_24a_v3s3",  # v3：冷硬 AU 提示词
         [(0.0, 0.0), (dur_24a, 72.0)],
         [(0.16, dur_24a - 0.12, "听着，从现在起对外一律封锁死讯，妈的葬礼定在28号！")],
         mix_24a, ls_stem=stem_24a, ls_dur=dur_24a - 0.08,
@@ -404,227 +343,25 @@ def build_p2_spec() -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
 
 
 def resolve_p2_clip(clip_base: str, fast_mode: bool) -> Path:
-    if not fast_mode:
-        cands = sorted(CLIP_DIR.glob(f"{clip_base}*.mp4"))
-        if cands:
-            return cands[0]
-    cands = sorted(SCOUT_DIR.glob(f"{clip_base}*.mp4"))
-    if cands:
-        return cands[0]
-    raise FileNotFoundError(f"Missing video clip matching {clip_base} in {CLIP_DIR} or {SCOUT_DIR}")
+    return sb.resolve_clip(SEG, clip_base, fast_mode)
 
 
 def prepare(fast_mode: bool = False):
-    print("[prepare ep01_p2] Mixing shot WAVs & preparing 25fps LatentSync inputs...", flush=True)
     specs, ls_stems = build_p2_spec()
-    META_PATH.write_text(json.dumps(specs, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    stems_map = dict(ls_stems)
-    rife = bv13.get_rife()
-    for p in LS_IN_DIR.glob("*"):
-        p.unlink()
-
-    packed: list[Path] = []
-    for s in specs:
-        sid = s["id"]
-        if s["lipsync_dur_sec"] is None:
-            continue
-        clip_p = resolve_p2_clip(s["clip"], fast_mode=fast_mode)
-        raw_frames = bv13.decode_video_frames(clip_p)
-        ls_dur = float(s["lipsync_dur_sec"])
-        n25 = max(1, int(round(ls_dur * FPS_LIPSYNC)))
-        pos25 = [bv13.eval_curve(k / FPS_LIPSYNC, s["curve"]) for k in range(n25)]
-        frames25 = rife.render_positions(raw_frames, pos25)
-        vid_out = LS_IN_DIR / f"vid_{sid}.mp4"
-        bv13.encode_mp4_no_audio(frames25, vid_out, FPS_LIPSYNC)
-        wav_out = LS_IN_DIR / f"stem_{sid}.wav"
-        stems_map[sid][: int(n25 * 1000 / FPS_LIPSYNC)].export(wav_out, format="wav")
-        packed.extend([vid_out, wav_out])
-        print(f"  [ls_in] {sid}: {n25}f @ 25fps ({ls_dur:.2f}s) from {clip_p.name}", flush=True)
-
-    tar_p = P2_ROOT / "lipsync_in.tar.gz"
-    with tarfile.open(tar_p, "w:gz") as tf:
-        for p in packed:
-            tf.add(p, arcname=p.name)
-    print(f"[prepare OK] {len(specs)} shots, {len(stems_map)} LatentSync bundles -> {tar_p} ({tar_p.stat().st_size // 1024} KB)", flush=True)
+    sb.prepare(SEG, specs, ls_stems, META_PATH, fast_mode=fast_mode)
 
 
 def render_p2_shot_frames(s: dict, fast_mode: bool) -> list[np.ndarray]:
-    sid = s["id"]
-    dur = float(s["dur"])
-    n_frames = max(1, int(round(dur * FPS_FINAL)))
-    rife = bv13.get_rife()
-    inner_mask = bv13.build_perimeter_inner_mask(H, W, margin=36)
-
-    clip_p = resolve_p2_clip(s["clip"], fast_mode=fast_mode)
-    raw_frames = bv13.decode_video_frames(clip_p)
-    pos_base = [bv13.eval_curve(k / FPS_FINAL, s["curve"]) for k in range(n_frames)]
-    rgb_base = rife.render_positions(raw_frames, pos_base)
-
-    ls_dur = s.get("lipsync_dur_sec")
-    ls_mp4 = LS_OUT_DIR / f"sync_{sid}.mp4"
-    frames_rgb: list[np.ndarray] = []
-
-    if ls_dur is not None and ls_mp4.exists():
-        ls_raw = bv13.decode_video_frames(ls_mp4)
-        if abs(float(ls_dur) - dur) < 0.15:
-            pos_ls = [min(len(ls_raw) - 1.0, (k / FPS_FINAL) * FPS_LIPSYNC) for k in range(n_frames)]
-            rgb_ls = rife.render_positions(ls_raw, pos_ls)
-            for k in range(n_frames):
-                f = (rgb_ls[k].astype(np.float32) * inner_mask + rgb_base[k].astype(np.float32) * (1.0 - inner_mask)).astype(np.uint8)
-                frames_rgb.append(f)
-        else:
-            t_bs = float(ls_dur) - 0.18
-            t_be = float(ls_dur) - 0.03
-            pos_ls = [min(len(ls_raw) - 1.0, (k / FPS_FINAL) * FPS_LIPSYNC) for k in range(n_frames)]
-            rgb_ls = rife.render_positions(ls_raw, pos_ls)
-            for k in range(n_frames):
-                t_now = k / FPS_FINAL
-                ls_clean = rgb_ls[k].astype(np.float32) * inner_mask + rgb_base[k].astype(np.float32) * (1.0 - inner_mask)
-                if t_now <= t_bs:
-                    frames_rgb.append(ls_clean.astype(np.uint8))
-                elif t_now >= t_be:
-                    frames_rgb.append(rgb_base[k])
-                else:
-                    a = (t_now - t_bs) / (t_be - t_bs)
-                    frames_rgb.append((ls_clean * (1.0 - a) + rgb_base[k].astype(np.float32) * a).astype(np.uint8))
-    else:
-        if ls_dur is not None:
-            print(f"[WARN] Missing {ls_mp4}, using base RIFE clip for {sid}", flush=True)
-        frames_rgb = rgb_base
-    return frames_rgb
+    return sb.render_shot_frames(SEG, s, fast_mode)
 
 
-def file_sha256(p: Path) -> str:
-    h = hashlib.sha256()
-    with p.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+file_sha256 = sb.file_sha256
 
 
 def assemble(fast_mode: bool = False):
     specs = json.loads(META_PATH.read_text(encoding="utf-8"))
-    mode_tag = "fast" if fast_mode else "master"
-    vf_args = [] if fast_mode else ["-vf", bv13.VF_CINEMA]
-    enc_preset = "veryfast" if fast_mode else "medium"
-    enc_crf = "20" if fast_mode else "17"
-
-    seg_files: list[Path] = []
-    srt_entries: list[tuple[float, float, str]] = []
-    t_cursor = 0.0
-
-    for s in specs:
-        sid = s["id"]
-        dur = float(s["dur"])
-        n_frames = max(1, int(round(dur * FPS_FINAL)))
-        seg_dur = n_frames / float(FPS_FINAL)
-        wav_p = MIX_DIR / f"shot_{sid}.wav"
-        out_seg = SHOT_DIR / f"seg_{mode_tag}_{sid}.mov"
-        hash_p = SHOT_DIR / f"seg_{mode_tag}_{sid}.sha256"
-
-        clip_p = resolve_p2_clip(s["clip"], fast_mode=fast_mode)
-        ls_mp4 = LS_OUT_DIR / f"sync_{sid}.mp4"
-        expected_hash = hashlib.sha256(
-            json.dumps(
-                {
-                    "v": 1,
-                    "mode": mode_tag,
-                    "spec": s,
-                    "clip_sha": file_sha256(clip_p),
-                    "ls_sha": file_sha256(ls_mp4) if (s.get("lipsync_dur_sec") is not None and ls_mp4.exists()) else "",
-                    "wav_sha": file_sha256(wav_p),
-                },
-                sort_keys=True, ensure_ascii=False,
-            ).encode("utf-8")
-        ).hexdigest()
-
-        if out_seg.exists() and hash_p.exists() and hash_p.read_text().strip() == expected_hash:
-            print(f"[CACHE HIT | {mode_tag}] shot_{sid}", flush=True)
-        else:
-            frames_rgb = render_p2_shot_frames(s, fast_mode=fast_mode)
-            cmd = [
-                "ffmpeg", "-y", "-v", "error",
-                "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS_FINAL), "-i", "-",
-                "-i", str(wav_p),
-                *vf_args,
-                "-af", "apad",
-                "-r", str(FPS_FINAL),
-                "-c:v", "libx264", "-preset", enc_preset, "-crf", enc_crf,
-                "-profile:v", "high", "-level:v", "3.1", "-bf", "2",
-                "-pix_fmt", "yuv420p", "-video_track_timescale", "15360",
-                "-c:a", "pcm_s16le", "-ar", str(SR), "-ac", "2",
-                "-t", f"{seg_dur:.6f}", str(out_seg),
-            ]
-            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-            stamp = s.get("stamp")
-            subs = s.get("subs", [])
-            for k, arr in enumerate(frames_rgb):
-                t_now = k / FPS_FINAL
-                im = Image.fromarray(arr)
-                if stamp and t_now < min(dur - 0.15, 3.6):
-                    a_s = min(1.0, t_now / 0.35, max(0.0, (min(dur - 0.15, 3.6) - t_now) / 0.45))
-                    im = draw_corner_stamp(im, stamp, alpha_scale=a_s)
-                active_txt = next((txt for a, b, txt in subs if a <= t_now <= b + 0.12), None)
-                if active_txt:
-                    im = bv13.draw_subtitle_on_frame(im, active_txt)
-                if s.get("fade_in") and k < int(FPS_FINAL * 0.45):
-                    im = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), im, k / (FPS_FINAL * 0.45))
-                elif s.get("fade_out") and k > n_frames - int(FPS_FINAL * 0.65):
-                    rem = max(0.0, (n_frames - 1 - k) / (FPS_FINAL * 0.65))
-                    im = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), im, rem)
-                proc.stdin.write(im.tobytes())
-            proc.stdin.close()
-            if proc.wait() != 0:
-                raise RuntimeError(f"ffmpeg failed on shot {sid}")
-            hash_p.write_text(expected_hash, encoding="utf-8")
-            print(f"[RENDER    | {mode_tag}] shot_{sid} ({dur:.2f}s)", flush=True)
-
-        for a, b, txt in s.get("subs", []):
-            srt_entries.append((t_cursor + a, t_cursor + b, txt))
-        seg_files.append(out_seg)
-        t_cursor += dur
-
-    concat_txt = P2_ROOT / f"concat_p2_{mode_tag}.txt"
-    concat_txt.write_text("".join(f"file '{p}'\n" for p in seg_files), encoding="utf-8")
-
-    out_mp4 = (OUT_DIR / "preview_ep01_p2_fast.mp4") if fast_mode else P2_FINAL_MP4
-    if not fast_mode:
-        arch_srt = OUT_DIR / f"{P2_FINAL_MP4.stem}_字幕归档.srt"
-        arch_srt.write_text(
-            "".join(f"{i}\n{bv13.format_srt_ts(a)} --> {bv13.format_srt_ts(b)}\n{t}\n\n" for i, (a, b, t) in enumerate(srt_entries, 1)),
-            encoding="utf-8",
-        )
-
-    subprocess.run(
-        [
-            "ffmpeg", "-y", "-v", "error",
-            "-f", "concat", "-safe", "0", "-i", str(concat_txt),
-            "-c:v", "copy",
-            "-af", bv13.AF_LIMITER,
-            "-c:a", "aac", "-b:a", "192k", "-ar", str(SR), "-ac", "2",
-            "-sn", "-movflags", "+faststart",
-            str(out_mp4),
-        ],
-        check=True,
-    )
-    print(f"[P2 {mode_tag.upper()} READY] {out_mp4} ({out_mp4.stat().st_size / (1024*1024):.2f} MB, {t_cursor:.2f}s)", flush=True)
-
-    # Seamless lossless -c:v copy concatenation of v0.13 (1-1..1-4) + ep01_p2 (1-5..1-6)
-    if not fast_mode and V13_FINAL_MP4.exists():
-        comb_txt = P2_ROOT / "concat_v014_combined.txt"
-        comb_txt.write_text(f"file '{V13_FINAL_MP4}'\nfile '{P2_FINAL_MP4}'\n", encoding="utf-8")
-        subprocess.run(
-            [
-                "ffmpeg", "-y", "-v", "error",
-                "-f", "concat", "-safe", "0", "-i", str(comb_txt),
-                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", str(SR), "-ac", "2",
-                "-sn", "-movflags", "+faststart",
-                str(COMBINED_FINAL_MP4),
-            ],
-            check=True,
-        )
-        print(f"[COMBINED READY] {COMBINED_FINAL_MP4} ({COMBINED_FINAL_MP4.stat().st_size / (1024*1024):.2f} MB)", flush=True)
+    sb.assemble(SEG, specs, P2_FINAL_MP4, fast_mode=fast_mode,  # 合片改由 p3 统一拼 p1+p2+p3
+                target_lufs=-19.2)  # A-MASTER-LOUDNESS：v2 为 -15.1，比 p1/p3 响 4 LU（defects loudness_mismatch）
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@
   scope: [dialogue]
   action:
     process: VoxCPM2 先按固定 seed 铸 actor_<role>.wav，再以 reference_wav_path 克隆单句，情绪只用提示词控制
-    params: {seed: {罗家明: 1991, 叶子农: 1992, 库格列夫: 1993, 苏玉平: 1994, 库格列夫_en: 1995, 罗慧娟: 1996, 林雪红: 1997}}
+    params: {seed: {罗家明: 1991, 叶子农: 1992, 库格列夫: 1993, 苏玉平: 1994, 库格列夫_en: 1995, 罗慧娟: 1996, 林雪红: 1997, 梁士乔: 1998, 戴梦岩: 1999, 韩平: 2000, 阿英: 2001}}  # 1998–2001 由 xiying 2026-11-17 批（p3）
   evidence: [视频/ep01_p2/remote_voxcpm2_p2.py]
 
 - id: A-KEYLINE-MULTI-CANDIDATE
@@ -90,3 +90,16 @@
   action:
     process: 字幕只烧进画面；.srt 归档在版本内 out/，成片目录 0 个 .srt
   evidence: [视频/AI短剧制作经验总结.md#四.4]
+
+- id: A-ASR-VERIFY
+  status: candidate
+  layer: 后期
+  symptom: 配音漏字/读错数字，或台词连读后意思变了（如「纽约老九十二万」听成「九十二万」）
+  root_cause: TTS 不懂语义停顿；人耳逐条听 30+ 条成本高，容易漏
+  scope: [dialogue, lipsync]
+  action:
+    process: 配音出来后跑 loop/tools/asr_check.py（medium 模型）；相似度 <0.85 或数字/专名不对的逐条人耳复核；连读歧义改剧本台词加停顿，不靠换种子
+  regress: 下一段配音全量跑一次，统计抓到的真问题数 vs 人耳最终结论
+  evidence: [tools/asr_check.py, ledger/defects.jsonl]
+  note: 2026-11-18 p3 首用：抓到 8j_b 剧本歧义；「见路不走」small 模型误报、medium 正确——单音节（咔）ASR 不可靠
+

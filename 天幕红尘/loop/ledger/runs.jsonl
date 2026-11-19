@@ -1,0 +1,23 @@
+{"ts": "2026-11-17T18:05:00", "seg": "p3", "stage": "char_refs", "workers": 1, "jobs": 15, "failed": 0, "wall_s": 480, "machine_h": 0.063, "cu_est": 0.63, "auto": false, "note": "backfill：余额 2269.59→2268.96；渲染 263s"}
+{"ts": "2026-11-18T09:22:27", "seg": "p3", "stage": "keyframes", "workers": 2, "jobs": 27, "failed": 0, "wall_s": 554, "machine_h": 0.256, "cu_est": 2.57, "auto": false}
+{"ts": "2026-11-18T09:27:34", "seg": "p3", "stage": "voices", "workers": 1, "jobs": 1, "failed": 0, "wall_s": 279, "machine_h": 0.061, "cu_est": 0.61, "auto": false}
+{"ts": "2026-11-18T09:31:18", "seg": "p3", "stage": "keyframes", "workers": 1, "jobs": 6, "failed": 0, "wall_s": 438, "machine_h": 0.084, "cu_est": 0.85, "auto": false}
+{"ts": "2026-11-18T10:01:40", "seg": "p3", "stage": "voices", "workers": 1, "jobs": 1, "failed": 0, "wall_s": 218, "machine_h": 0.038, "cu_est": 0.38, "auto": false}
+{"ts": "2026-11-18T10:03:09", "seg": "p3", "stage": "keyframes", "workers": 2, "jobs": 7, "failed": 0, "wall_s": 343, "machine_h": 0.148, "cu_est": 1.48, "auto": false}
+{"ts": "2026-11-18T10:07:07", "seg": "p3", "stage": "keyframes", "workers": 1, "jobs": 2, "failed": 0, "wall_s": 207, "machine_h": 0.039, "cu_est": 0.39, "auto": false}
+{"ts": "2026-11-18T10:24:45", "seg": "p3", "stage": "scout", "workers": 2, "jobs": 70, "failed": 0, "wall_s": 1254, "machine_h": 0.648, "cu_est": 6.52, "auto": false}
+{"ts": "2026-11-18T10:46:47", "seg": "p3", "stage": "hd", "workers": 3, "jobs": 36, "failed": 0, "wall_s": 1197, "machine_h": 0.907, "cu_est": 9.12, "auto": false}
+{"ts": "2026-11-18T15:33:55", "seg": "p3", "stage": "hd_cont", "workers": 2, "jobs": 23, "failed": 0, "wall_s": 1784, "machine_h": 0.953, "cu_est": 9.58, "auto": false}
+{"ts": "2026-11-18T16:16:15", "seg": "p3", "stage": "lipsync", "workers": 2, "jobs": 2, "failed": 1, "wall_s": 1980, "machine_h": 1.043, "cu_est": 10.49, "auto": false}
+{"ts": "2026-11-18T16:20:25", "seg": "p3", "stage": "hd_cont_ghost", "workers": 1, "jobs": 0, "failed": 0, "wall_s": 4572, "machine_h": 1.27, "cu_est": 12.77, "auto": false, "note": "hdcont37a-w1 报开机失败但实际开起、未被关；vm 手动 stop。上限估计（开机时刻未知）。colab_pool 已修：失败即补关、收尾按前缀扫"}
+{"ts": "2026-11-18T16:42:39", "seg": "p3", "stage": "lipsync", "workers": 1, "jobs": 4, "failed": 0, "wall_s": 1327, "machine_h": 0.312, "cu_est": 3.14, "auto": false}
+{"ts": "2026-11-18T17:09:30", "seg": "p3", "stage": "build", "final": "第01集_续段1-7至1-8_v0.1.mp4", "final_s": 238.1}
+{"ts": "2026-11-18T17:33:47", "seg": "p3", "stage": "build", "final": "第01集_续段1-7至1-8_v0.1.mp4", "final_s": 238.1}
+{"ts": "2026-11-18T17:34:27", "seg": "p3", "stage": "build", "final": "第01集_续段1-7至1-8_v0.1.mp4", "final_s": 238.1}
+{"ts": "2026-11-18T17:54:28", "seg": "p3", "stage": "build", "final": "第01集_续段1-7至1-8_v0.1.mp4", "final_s": 238.1}
+{"ts": "2026-11-18T19:24:33", "seg": "p2", "stage": "stills_fix", "workers": 1, "jobs": 6, "failed": 0, "wall_s": 247, "machine_h": 0.045, "cu_est": 0.45, "auto": false}
+{"ts": "2026-11-18T19:35:46", "seg": "fix", "stage": "hd", "workers": 3, "jobs": 15, "failed": 0, "wall_s": 638, "machine_h": 0.474, "cu_est": 4.77, "auto": false}
+{"ts": "2026-11-18T19:41:22", "seg": "p2", "stage": "lipsync", "workers": 1, "jobs": 1, "failed": 0, "wall_s": 295, "machine_h": 0.064, "cu_est": 0.64, "auto": false}
+{"ts": "2026-11-18T19:41:38", "seg": "fix", "stage": "cont", "workers": 1, "jobs": 1, "failed": 0, "wall_s": 319, "machine_h": 0.073, "cu_est": 0.73, "auto": false}
+{"ts": "2026-11-18T20:07:21", "seg": "p3", "stage": "lipsync", "workers": 3, "jobs": 5, "failed": 0, "wall_s": 668, "machine_h": 0.494, "cu_est": 4.97, "auto": false}
+{"ts": "2026-11-18T20:23:20", "seg": "p3", "stage": "build", "final": "第01集_p3_1-7至1-8_v2.mp4", "final_s": 240.03}

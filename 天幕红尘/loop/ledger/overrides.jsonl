@@ -1,0 +1,5 @@
+{"date": "2026-11-17", "rule": "C-COLDOPEN-SPLIT", "shot": "p3/1-7,1-8", "reason": "char:戴梦岩 让整段片场戏命中「第1集不出戴梦岩」；已收窄"}
+{"date": "2026-11-17", "rule": "V-GRIEF-AU-PROMPT", "shot": "p3 全部近景台词镜", "reason": "face_closeup 单独命中哭戏提示（含 lips closed）；已收窄"}
+{"date": "2026-11-18", "rule": "V-SCOUT-THEN-HD", "shot": "p3续段(17)+s7c/s7j重出", "reason": "续段首帧是 HD 末帧，Scout 不可比；且 s7c/s7j 已证同种子 Scout→HD 动作不一致（defects #47 #48），故 HD 直出"}
+{"date": "2026-11-18", "rule": "P-FLOW-CHAR-REF-MODEL", "shot": "p3续段", "reason": "Flow 专用规则，Wan I2V 不适用"}
+{"date": "2026-11-18", "rule": "V-SCOUT-THEN-HD", "shot": "p2:21a,23,24a;p3:8m", "reason": "返修镜：动作/机位旧版已验证，只换表情/服装/道具，HD 直出 3-4 种子"}

@@ -14,5 +14,6 @@ description: 天幕红尘 视频镜头生成前的规则合成。写任何新镜
    台词镜头另跑一次 `--kind audio`，标签加 `lipsync`、`dialogue`
 3. 把 `prompt 追加` 和 `neg 追加` 并入镜头定义，`参数` 写入脚本，`流程/红线清单` 逐条打勾后再开 G4
 4. ［候选］规则照样执行，但在镜头定义里注释 `# candidate: <ID>`，便于回归对比
+4.5 compile 命中但这一镜不该用的规则，记一次：`loop.py override --rule <ID> --shot <镜> --reason "..."`。复盘靠它发现作用域过宽
 5. 如果某条规则和镜头需要冲突（比如有意违背），不要静默跳过：写进 `天幕红尘/loop/ledger/open_questions.md`，问 xiying
 6. 新版本不要复制上一版的 build_vNN.py 整体改；能复用的 import，镜头差异放数据（hd_plan.json / 镜头定义）

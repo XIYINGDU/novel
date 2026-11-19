@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+import zlib
 import tarfile
 import time
 from pathlib import Path
@@ -99,7 +100,7 @@ for d in (AUD_DIR, LIP_IN_DIR, LIP_OUT_DIR, SHOT_DIR, OUT_DIR, STILL_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 VIDEO_ROOT = Path("/Users/duxiying/Documents/novel/天幕红尘/视频")
-PILOT_PREFIX = "第01集_开篇试片"
+PILOT_PREFIX = "第01集_p1_1-1至1-4"  # 2026-11-18 统一命名：集_段_场次_vN；旧版在 视频/旧版/
 
 
 def get_next_version_mp4(
@@ -107,18 +108,20 @@ def get_next_version_mp4(
     title_prefix: str = PILOT_PREFIX,
     min_minor: int = 13,
 ) -> Path:
-    """Return the next unused `_v0.<minor>.mp4` path so every revision saves a new file."""
-    pat = re.compile(rf"^{re.escape(title_prefix)}_v0\.(\d+)\.mp4$")
+    """Return the next unused `_v<N>.mp4` path so every revision saves a new file（主目录 + 旧版/ 一起数）。"""
+    pat = re.compile(rf"^{re.escape(title_prefix)}_v(\d+)\.mp4$")
     max_minor = min_minor - 1
-    if video_dir.exists():
-        for entry in video_dir.iterdir():
+    for d in (video_dir, video_dir / "旧版"):
+        if not d.exists():
+            continue
+        for entry in d.iterdir():
             m = pat.match(entry.name)
             if m:
                 max_minor = max(max_minor, int(m.group(1)))
     minor = max(min_minor, max_minor + 1)
-    while (video_dir / f"{title_prefix}_v0.{minor}.mp4").exists():
+    while (video_dir / f"{title_prefix}_v{minor}.mp4").exists():
         minor += 1
-    return video_dir / f"{title_prefix}_v0.{minor}.mp4"
+    return video_dir / f"{title_prefix}_v{minor}.mp4"
 
 W, H = 1280, 720
 FPS_FINAL = 30
@@ -595,7 +598,7 @@ def make_ambience(kind: str, dur_ms: int) -> AudioSegment:
         bed = ffmpeg_af(loops[:dur_ms], "highpass=f=65,lowpass=f=420:poles=2")
         return bed.apply_gain(-35.0 - bed.dBFS)
     n = int(SR * dur_ms / 1000.0)
-    rng = random.Random(hash(kind) & 0xFFFF)
+    rng = random.Random(zlib.crc32(kind.encode()) & 0xFFFF)  # hash() 每进程随机 → 混音不可复现、缓存永不命中
     lvl = {
         "paris_night": 0.016,
         "moscow_room": 0.010,
