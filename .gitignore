@@ -38,3 +38,4 @@ __pycache__/
 天幕红尘/视频/**/*.sha256
 天幕红尘/视频/**/concat*.txt
 天幕红尘/视频/**/*scout_ready.json
+.cc-suite/
