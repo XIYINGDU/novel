@@ -5,25 +5,28 @@
     from colab_pool import ColabPool
     with ColabPool(n=2, setup=my_setup) as pool:          # 并行开机；setup(worker) 在每台上准备环境
         results, failed = pool.run(jobs, my_job_fn)        # 共享队列：哪台空闲哪台取下一个任务
-    # 退出 with 时（含异常）一定 stop_all 并核实 burn_rate_hourly == 0.0
+    # 退出 with 时（含异常）逐台释放本池机器，无法核实时抛出异常
 
 - 开机走 loop/tools/colab_bridge_multi.py 的 `wake --session wN`，每台一个独立会话。
 - 部分机器没开成（账号当前上限 3 台，或卡源不足）就用开成的继续；一台都没有才报错。
 - 某台跑任务失败：任务退回队列换别的机器重试一次；这台连续失败 2 次就下线。
 - n=1 时行为与旧的单机流程一致。
 - 自我迭代：退出时自动把这次运行（任务数、失败、墙钟、机时、估算 CU）写进 loop/ledger/runs.jsonl。
-- 花钱闸门：max_cu=X 时有看门狗，估算花费超过 X 立即 stop_all；auto=True（无人批准的自动回归）
+- 花钱闸门：max_cu=X 时有看门狗，估算花费超过 X 即关闭本池；auto=True（无人批准的自动回归）
   开机前先查 loop/budget.yaml 额度，超额直接拒绝。
 """
 from __future__ import annotations
 
 import json
+import math
 import queue
 import re
 import subprocess
 import sys
 import threading
 import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -41,14 +44,28 @@ def log(*a):
         print(*a, flush=True)
 
 
-def bridge(*args: str, timeout: int = 900) -> str:
+def bridge(*args: str, timeout: float = 900) -> str:
     res = subprocess.run([BRIDGE_PY, BRIDGE, *args], capture_output=True, text=True, timeout=timeout)
     return (res.stdout + res.stderr).strip()
 
 
+def _reply(*args, timeout: int) -> dict:
+    lines = bridge(*args, timeout=timeout).splitlines()
+    result = json.loads(lines[-1]) if lines else {}
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        reason = result.get("error") if isinstance(result, dict) else None
+        raise RuntimeError(f"{args[0]} 失败：{reason or '无有效响应'}")
+    return result
+
+
 def status() -> dict:
-    out = bridge("auth_status", timeout=60).splitlines()
-    return json.loads(out[-1]) if out else {}
+    result = _reply("auth_status", timeout=60)
+    sessions = result.get("sessions")
+    if (result.get("logged_in") is not True or not isinstance(sessions, list)
+            or result.get("active_assignments") != len(sessions)
+            or any(not isinstance(s, dict) or not s.get("name") or not s.get("endpoint") for s in sessions)):
+        raise RuntimeError("无法取得完整的 Colab 会话清单")
+    return result
 
 
 @dataclass
@@ -60,6 +77,7 @@ class Worker:
     done: int = 0
     t_wake: float = 0.0
     t_stop: float = 0.0
+    endpoint: str | None = None
 
     def log(self, *a):
         log(f"[{self.name}]", *a)
@@ -78,13 +96,15 @@ class ColabPool:
         self.seg, self.stage, self.auto = seg, stage, auto
         self.rate = float(hooks.load_budget().get("cu_per_g4_hour", 10.05))
         self.max_cu = max_cu if max_cu is not None else (hooks.load_budget()["auto_cu_per_run"] if auto else None)
+        if self.max_cu is not None and (not math.isfinite(self.max_cu) or self.max_cu <= 0):
+            raise ValueError("max_cu 必须是正的有限额度")
         self.t0 = time.time()
-        self._all_woken: list[Worker] = []
         self.n_jobs = self.n_failed = 0
         self.over_budget = False
-        self._shut = False
-        import uuid
-        self.tag = f"{re.sub(r'[^a-z0-9]', '', stage.lower())[:6]}{uuid.uuid4().hex[:3]}-"  # 会话名前缀：多个池并行互不抢机器
+        self._release_lock = threading.Lock()
+        self._released = False
+        self.tag = f"{re.sub(r'[^a-z0-9]', '', stage.lower())[:6]}{uuid.uuid4().hex}-"
+        self._requested: list[Worker] = []
 
     # ---------- 生命周期 ----------
     def __enter__(self):
@@ -95,68 +115,73 @@ class ColabPool:
                 raise RuntimeError(f"超出自动额度，需 xiying 批准：{msg}")
         try:
             self._wake_all()
+            if self.max_cu is not None and self.cu_est() >= self.max_cu:
+                self.over_budget = True
+                raise RuntimeError("开机已达 CU 预算")
             threading.Thread(target=self._keepalive, daemon=True).start()
             self._setup_all()
+            if self.over_budget:
+                raise RuntimeError("环境准备期间已达 CU 预算")
         except BaseException:
-            self._shutdown()
+            self._finish()
             raise
         return self
 
     def __exit__(self, *exc):
-        self._shutdown()
+        self._finish()
         return False
 
-    def _wake_one(self, name: str, out: dict):
+    def _wake_one(self, worker: Worker):
+        name = worker.name
+        worker.t_wake = time.time()
         try:
-            txt = bridge("wake", "--gpu", self.gpu, "--session", name)
+            # wake 包含分配以后的启动/部署时间，预算检查不能只覆盖 setup 和任务。
+            timeout = 900
+            if self.max_cu is not None:
+                timeout = min(timeout, self.max_cu * 3600 / (self.n * self.rate))
+            txt = bridge("wake", "--gpu", self.gpu, "--session", name, timeout=timeout)
             urls = re.findall(r"https://[a-zA-Z0-9.-]+\.gradio\.live", txt)
             if "WAKE_ERROR" in txt or not urls:
                 tail = [l for l in txt.splitlines() if "WAKE_ERROR" in l] or txt.splitlines()[-3:]
                 log(f"[pool] {name} 开机失败：{' | '.join(tail)[:300]}")
-                self._stop_quiet(name)  # 「失败」的机器可能稍后照样开起来并计费（p3 2026-11-18 漏关 1 小时+）
+                self._stop_quiet(worker)
                 return
-            out[name] = urls[-1].rstrip("/")
-            log(f"[pool] {name} 就绪 {out[name]}")
+            worker.base_gradio = urls[-1].rstrip("/")
+            log(f"[pool] {name} 就绪 {worker.base_gradio}")
         except Exception as e:
             log(f"[pool] {name} 开机异常：{e}")
-            self._stop_quiet(name)
+            self._stop_quiet(worker)
 
-    def _stop_quiet(self, name: str):
+    def _stop_quiet(self, worker: Worker):
         try:
-            bridge("stop", "--session", name, timeout=180)
+            result = _reply("stop", "--session", worker.name, timeout=180)
+            if result.get("stopped") != worker.name:
+                raise RuntimeError("响应中的会话名不符")
+            worker.endpoint = result.get("endpoint") or worker.endpoint
+            worker.t_stop = time.time()
         except Exception as e:
-            log(f"[pool] {name} 补关异常（收尾时按前缀再查）：{e}")
-
-    def _mine_now(self) -> list[str]:
-        """本池所有会话：开成的 + 当前在跑且名字带本池前缀的（包括报开机失败、其实开起来了的）。"""
-        names = {w.name for w in self._all_woken}
-        try:
-            names |= {x["name"] for x in status().get("sessions", []) if str(x.get("name", "")).startswith(self.tag)}
-        except Exception as e:
-            log(f"[pool] 查会话异常：{e}")
-        return sorted(names)
+            log(f"[pool] {worker.name} 关机请求未确认：{e}")
 
     def _wake_all(self):
         log(f"[pool] 并行开 {self.n} 台 {self.gpu} ...")
-        got: dict[str, str] = {}
-        ts = []
-        for i in range(self.n):
-            t = threading.Thread(target=self._wake_one, args=(f"{self.tag}w{i + 1}", got))
-            t.start()
-            ts.append(t)
-            time.sleep(self.stagger_s)
-        for t in ts:
-            t.join()
-        self.workers = [Worker(k, got[k], t_wake=time.time()) for k in sorted(got)]
-        self._all_woken = list(self.workers)
+        # 先等所有已经发出的开机操作收尾，再进入关机流程。
+        with ThreadPoolExecutor(max_workers=self.n) as executor:
+            for i in range(self.n):
+                w = Worker(f"{self.tag}w{i + 1}", "")
+                self._requested.append(w)
+                executor.submit(self._wake_one, w)
+                if i + 1 < self.n:
+                    time.sleep(self.stagger_s)
+        self.workers = [w for w in self._requested if w.base_gradio]
         if not self.workers:
             raise RuntimeError("一台 GPU 都没开成")
         st = status()
-        for x in st.get("sessions", []):
-            nm = str(x.get("name", ""))
-            if nm.startswith(self.tag) and nm not in got:
-                log(f"[pool] ⚠ {nm} 报失败却在跑，立即关掉")
-                self._stop_quiet(nm)
+        live = {x["name"]: x for x in st["sessions"]}
+        for w in self._requested:
+            if w.name in live:
+                w.endpoint = live[w.name].get("endpoint")
+            if not w.base_gradio and w.name in live:
+                self._stop_quiet(w)
         log(f"[pool] 开成 {len(self.workers)}/{self.n} 台，burn {st.get('burn_rate_hourly')} CU/h")
 
     def _setup_all(self):
@@ -170,8 +195,7 @@ class ColabPool:
                 ok.append(w)
             except Exception as e:
                 w.log(f"环境准备失败，下线：{e}")
-                bridge("stop", "--session", w.name, timeout=120)
-                w.t_stop = time.time()
+                self._stop_quiet(w)
 
         ts = [threading.Thread(target=run, args=(w,)) for w in self.workers]
         for t in ts:
@@ -182,16 +206,22 @@ class ColabPool:
         if not self.workers:
             raise RuntimeError("所有机器环境准备都失败")
 
+    def _allocated(self) -> list[Worker]:
+        return [w for w in self._requested if w.base_gradio or w.endpoint or w.t_stop]
+
     def cu_est(self) -> float:
         now = time.time()
-        return sum(((w.t_stop or now) - w.t_wake) for w in self._all_woken) / 3600 * self.rate
+        return sum((w.t_stop or now) - w.t_wake for w in self._allocated()) / 3600 * self.rate
 
     def _keepalive(self):
         while not self._stop_ka.wait(self.keepalive_s):
             if self.max_cu is not None and self.cu_est() > self.max_cu:
                 self.over_budget = True
                 log(f"[pool] ⚠ 估算花费 {self.cu_est():.2f} CU 超过上限 {self.max_cu}，看门狗强制关机")
-                self._shutdown()
+                try:
+                    self._release()
+                except Exception as e:
+                    log(f"[pool] 看门狗关机未核实，退出时继续处理：{e}")
                 return
             try:
                 out = bridge("keepalive", timeout=120).splitlines()
@@ -199,52 +229,59 @@ class ColabPool:
             except Exception as e:
                 log(f"  [keepalive err] {e}")
 
-    def _shutdown(self):
-        if self._shut:
-            return
-        self._shut = True
-        self._stop_ka.set()
-        t_end = time.time()
-        for w in self._all_woken:
-            w.t_stop = w.t_stop or t_end
-        mine = self._mine_now()
-        ghosts = [n for n in mine if n not in {w.name for w in self._all_woken}]
-        if ghosts:
-            log(f"[pool] ⚠ 发现报开机失败但实际在跑的机器 {ghosts}（时长未入账），一并关掉")
-        log(f"[pool] 释放本池机器 {mine} ...")
-        for attempt in range(4):
-            try:
-                for name in mine:
-                    bridge("stop", "--session", name, timeout=180)
-                st = status()
-                left = [x["name"] for x in st.get("sessions", []) if x.get("name") in mine
-                        or str(x.get("name", "")).startswith(self.tag)]
-                if not left:
-                    others = len(st.get("sessions", []))
-                    extra = f"（另有 {others} 台属于别的任务，未动）" if others else ""
-                    log(f"[pool] 已核实：本池机器全部释放，当前 burn {st.get('burn_rate_hourly')}，余额 {st.get('paid_balance')}{extra}")
-                    self._record()
-                    return
-                log(f"[pool] 仍在运行：{left}，重试")
-            except Exception as e:
-                log(f"[pool] 关机异常：{e}")
-            time.sleep(3.0 * (attempt + 1))
-        log("[pool] ⚠ 逐台关机未核实，兜底 stop_all（会连带关掉其他任务的机器）")
+    def _finish(self):
+        # 只有退出上下文的线程记账，此时任务成功/失败计数已汇总。
         try:
-            log(bridge("stop_all", timeout=300).splitlines()[-1])
-        except Exception as e:
-            log(f"[pool] stop_all 异常：{e}")
-        st = status()
-        if st.get("burn_rate_hourly") != 0.0:
-            log("[pool] ⚠ 仍未归零！请立刻手动 stop_all 并检查 auth_status")
-        self._record(note="逐台关机未核实，已兜底 stop_all")
+            self._release()
+        finally:
+            self._record(note="" if self._released else "本池关机未核实，机时估到最后一次检查")
+
+    def _release(self):
+        self._stop_ka.set()
+        # 看门狗和 __exit__ 均可先到；只有拿到锁并核实状态后才能返回。
+        with self._release_lock:
+            if self._released:
+                return
+            pending = list(self._requested)
+            for attempt in range(4):
+                for w in pending:
+                    self._stop_quiet(w)
+                try:
+                    st = status()
+                    live = {s["name"]: s["endpoint"] for s in st["sessions"]}
+                    endpoints = {s["endpoint"] for s in st["sessions"]}
+                    pending = [w for w in self._requested if w.name in live or w.endpoint in endpoints]
+                    for w in pending:
+                        w.endpoint = live.get(w.name) or w.endpoint
+                        w.t_stop = 0.0
+                    # 桥接服务给没有本地映射的实例统一命名为 colab-vm。
+                    # 未获关闭回执的本池实例也可能在其中，须再次按本池名字核实。
+                    if "colab-vm" in live:
+                        pending.extend(w for w in self._requested if not w.endpoint and not w.t_stop and w not in pending)
+                    if not pending:
+                        self._released = True
+                        for w in self._allocated():
+                            w.t_stop = w.t_stop or time.time()
+                        log(f"[pool] 已核实：本池机器全部释放，当前 burn {st.get('burn_rate_hourly')}")
+                        return
+                    detail = f"仍需核实 {[w.name for w in pending]}"
+                except Exception as e:
+                    detail = str(e)
+                    pending = [w for w in self._requested if not w.t_stop]
+                log(f"[pool] 第 {attempt + 1} 次关机核验：{detail}")
+                if attempt < 3:
+                    time.sleep(3 * (attempt + 1))
+            names = [w.name for w in self._requested]
+            raise RuntimeError(f"无法核实本池 {names} 已释放：{detail}")
 
     def _record(self, note: str = ""):
         try:
-            mh = sum(w.t_stop - w.t_wake for w in self._all_woken) / 3600
+            now = time.time()
+            allocated = self._allocated()
+            mh = sum((w.t_stop or now) - w.t_wake for w in allocated) / 3600
             if self.over_budget:
                 note = (note + "；" if note else "") + "看门狗超额关机"
-            hooks.record_run(self.seg, self.stage, len(self._all_woken), self.n_jobs, self.n_failed,
+            hooks.record_run(self.seg, self.stage, len(allocated), self.n_jobs, self.n_failed,
                              time.time() - self.t0, mh, mh * self.rate, auto=self.auto, note=note)
         except Exception as e:
             log(f"[pool] 记账失败（不影响关机）：{e}")
@@ -267,7 +304,7 @@ class ColabPool:
                     job, tries = q.get_nowait()
                 except queue.Empty:
                     return
-                if self._shut:  # 看门狗已关机：剩余任务不再派发
+                if self._stop_ka.is_set():  # 看门狗正关机：剩余任务不再派发
                     with lock:
                         failed[key(job)] = "已关机（超额度）"
                     continue

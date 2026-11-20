@@ -18,7 +18,7 @@
 
 ## 二、四层自动化架构总览
 
-1. **第 1 层 · 算力生命周期控制（`colab_bridge.py`）**：负责查 CU 余额、唤醒 GPU 容器、上传拉起 `app.py`、定时 `keepalive` 保活、以及任务结束后的 `stop_all` 销毁。
+1. **第 1 层 · 算力生命周期控制（`colab_bridge.py`）**：负责查 CU 余额、唤醒 GPU 容器、上传拉起 `app.py`、定时 `keepalive` 保活、以及任务结束时释放实例。
 2. **第 2 层 · 图像/多模态生成控制（`/minimax_api/*`）**：通过 `wake` 返回的 `https://<id>.gradio.live` 地址，用标准 HTTP JSON 调用 `Qwen-Image-2.1` 等内置模型进行文生图（`t2i`）或参考图精修（`i2i_edit`）。
 3. **第 3 层 · 动态视频生成控制（ComfyUI API）**：通过 `/minimax_api/comfyui/*` 一键拉起云端 ComfyUI 与 `trycloudflare.com` 公网隧道、自动下载预设权重包（如 `wan22_i2v_flf2v`），再直接调用 ComfyUI 原生 `/upload/image`、`/prompt`、`/history`、`/view` 接口批量渲染视频。
 4. **第 4 层 · 任意开源模型扩展（`colab` CLI）**：对面板未内置的模型（如 `OpenBMB/VoxCPM2` 配音克隆），直接用 `colab exec --file` 在同一台云端 GPU 内核中跑自定义脚本，并用 `colab download` 拉回产物。
@@ -50,7 +50,7 @@ BRIDGE="/Applications/EasyColab.app/Contents/Resources/colab_bridge.py"
   "sessions": []
 }
 ```
-> **铁律**：每次任务前后都应检查 `active_assignments == 0` 且 `burn_rate_hourly == 0.0`，防止后台空转烧算力。
+> 多任务共用账号时，记录本任务的会话和 endpoint，退出后检查后端完整会话清单。最后一个任务退出后再核对账号的 `active_assignments` 和 `burn_rate_hourly` 是否归零。
 
 ### 2. 唤醒 GPU 并部署云端服务端（`wake`）
 支持 `--gpu G4`（RTX PRO 6000 96GB，性价比与显存最优）、`H100`、`A100`、`L4`、`T4`：
@@ -76,15 +76,17 @@ MULTI="/Users/duxiying/Documents/novel/天幕红尘/loop/tools/colab_bridge_mult
 "$BRIDGE_PY" "$MULTI" wake --gpu G4 --session A   # 各得一个 WAKE_URL
 "$BRIDGE_PY" "$MULTI" wake --gpu G4 --session B
 "$BRIDGE_PY" "$MULTI" keepalive                    # 会触达所有会话
-"$BRIDGE_PY" "$MULTI" stop --session A             # 只关一台；收尾仍 stop_all
+"$BRIDGE_PY" "$MULTI" stop --session A
+"$BRIDGE_PY" "$MULTI" stop --session B
+"$BRIDGE_PY" "$MULTI" auth_status                  # 确认 A、B 的实例均已释放
 ```
 扣费按台数叠加（G4 单台 10.05 CU/h）。两台挂同一个 EasyColab_Drive，避免同时写同名文件。详见 `天幕红尘/loop/ledger/experiments/2026-11-17_dual_g4.md`。
 
-### 4. 任务完成立即释放全部算力（`stop_all`）
+### 4. 需要释放账号全部实例时使用 `stop_all`
 ```bash
 "$BRIDGE_PY" "$BRIDGE" stop_all
 ```
-务必将 `stop_all` 放在自动化主控脚本的 `try ... finally:` 块中，确保无论任务正常完成还是抛异常中断，都会第一时间退还云端 GPU。
+自动化任务使用 `with ColabPool(...)` 管理自己的实例。单台释放失败时，池会按会话重试，并在无法核实时报告对应实例。
 
 ---
 
@@ -168,10 +170,10 @@ mkdir -p /path/to/local_audio_dir
    - **推荐做法**：生图与生视频**分阶段独立运行**——先把全部关键帧下载到本地并质检完毕，重开或清理后再用干净内存盘专门跑 ComfyUI 视频批处理。
 2. **网络闪断与 Cloudflare 502 重试**：
    - `trycloudflare.com` 免费隧道偶发瞬时 `HTTP 502 Bad Gateway` 或 `SSLEOFError`。所有 HTTP 请求函数必须封装 **5 次指数退避重试**；同时本地脚本按已存在文件名自动 `[skip]` 断点续传。
-3. **`stop_all` 双重兜底**：
-   - 若因本地断网导致 `finally` 中的 `stop_all` 报 `SSLError` 未送达，网络恢复后第一时间补跑一次 `colab_bridge.py stop_all` + `auth_status` 核验。
+3. **断线后的关机核验**：
+   - 网络恢复后，对本任务仍在运行的会话补跑 `stop --session`，再用 `auth_status` 核验。
 4. **项目中可直接复用的参考脚本**：
    - 生图批处理模板：[gen_keyframes_v03.py](file:///Users/duxiying/Documents/novel/天幕红尘/视频/v03_pilot/gen_keyframes_v03.py)
    - ComfyUI 视频批处理模板：[gen_videos_comfy_v03.py](file:///Users/duxiying/Documents/novel/天幕红尘/视频/v03_pilot/gen_videos_comfy_v03.py)
-   - 带保活与 `finally: stop_all` 的云端总控模板：[run_cloud_clips_v03.py](file:///Users/duxiying/Documents/novel/天幕红尘/视频/v03_pilot/run_cloud_clips_v03.py)
+   - 支持保活和逐台关机核验的共享机器池：[colab_pool.py](天幕红尘/视频/common/colab_pool.py)
    - 自定义模型（VoxCPM2）远程合成模板：[run_voxcpm2_v03_en.py](file:///Users/duxiying/Documents/novel/天幕红尘/视频/v03_pilot/run_voxcpm2_v03_en.py)

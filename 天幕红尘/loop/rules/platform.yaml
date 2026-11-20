@@ -41,7 +41,7 @@
   root_cause: Qwen-Image(~31GB)+Wan2.2(~35GB+页缓存) 超 88GB；unload 不清 shm
   scope: [colab, qwen_i2i, wan]
   action:
-    process: 阶段1 生图 → 下载质检 → stop_all → 阶段2 新 G4 跑 Scout+HD
+    process: 阶段1 生图 → 下载质检 → 释放本阶段的实例 → 阶段2 新 G4 跑 Scout+HD
   last_checked: 2026-11-08
   evidence: [视频/AI短剧制作经验总结.md#五.1]
 
@@ -52,7 +52,7 @@
   root_cause: 网络不稳 + 无兜底
   scope: [colab]
   action:
-    process: 5 次指数退避；产物存在即 skip；70s keepalive；finally 必 stop_all 并确认 burn_rate_hourly==0.0
+    process: 5 次指数退避；核验已有产物后跳过；70s keepalive；退出时逐台释放本任务的会话，从后端完整会话清单确认释放，查询失败则重试并报告
   last_checked: 2026-11-08
   evidence: [../EasyColab_自动化操作指南.md]
 
@@ -66,7 +66,7 @@
     process: >-
       要省时间时用 loop/tools/colab_bridge_multi.py wake --session A / --session B 双开 G4，
       镜头或种子分两组并行；扣费按台数线性叠加（单台 10.05 CU/h），总 CU 基本不变、多一次开机；
-      每台用 stop --session 单独关，finally 仍 stop_all 并确认 burn_rate_hourly==0.0；
+      收尾对本池每台机器执行 stop --session，通过 auth_status 确认本池会话和 endpoint 均已释放，保留并行任务的机器；
       两台挂同一个 EasyColab_Drive，不要同时往 Drive 写同名文件；也可 A 跑 Qwen、B 跑 Wan 绕开 P-SHM-NO-MIX
   regress: 下一段 Scout 用双开跑，对比单开墙钟时间与 CU
   last_checked: 2026-11-17

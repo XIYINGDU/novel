@@ -7,12 +7,12 @@
 import json
 import sys
 import tarfile
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "common"))
 from colab_pool import ColabPool  # noqa: E402
-from remote_job import run_remote  # noqa: E402
 
 AUD = HERE / "audio"
 JOB = HERE / "vox_job_p3.json"
@@ -70,16 +70,21 @@ RETAKES = [l for l in LINES if l[0] == "liang_8j_b"] + [
 
 
 def main():
+    from remote_job import run_remote
+
     retake = "--retake" in sys.argv
     lines = RETAKES if retake else LINES
     uploads, refs = {}, {}
     if retake:  # 复用已铸好的角色音色，保证同一副嗓子
         for key in {l[1] for l in lines}:
             wav = AUD / f"actor_{key}.wav"
+            if not wav.is_file():
+                raise SystemExit(f"重配缺少原始音色：{wav}")
             uploads[wav] = f"/content/actor_{key}.wav"
             refs[key] = f"/content/actor_{key}.wav"
     tag = "vox_p3_retake" if retake else "vox_p3"
-    JOB.write_text(json.dumps({"actors": ACTORS, "refs": refs, "lines": lines, "out": f"/content/{tag}_out.tar.gz"},
+    actors = {key: ACTORS[key] for key in refs} if retake else ACTORS
+    JOB.write_text(json.dumps({"actors": actors, "refs": refs, "lines": lines, "out": f"/content/{tag}_out.tar.gz"},
                               ensure_ascii=False, indent=1))
     uploads[JOB] = "/content/vox_job.json"
     tar_local = HERE / f"{tag}_out.tar.gz"
@@ -90,15 +95,30 @@ def main():
     if failed:
         raise SystemExit(f"配音失败：{failed}")
     AUD.mkdir(exist_ok=True)
-    if retake:
-        old = AUD / "liang_8j_b.wav"
-        if old.exists():
-            (AUD / "_v1").mkdir(exist_ok=True)
-            for ext in ("wav", "mp3"):
-                (AUD / f"liang_8j_b.{ext}").rename(AUD / "_v1" / f"liang_8j_b.{ext}")
-    with tarfile.open(tar_local) as tf:
-        tf.extractall(AUD, filter="data")
+    stems = [line[0] for line in lines] + [f"actor_{key}" for key in actors if key not in refs]
+    publish_audio(tar_local, stems, retake)
     print(f"[voices] {len(lines)} 条 → {AUD}")
+
+
+def publish_audio(archive: Path, stems: list[str], retake: bool):
+    names = [f"{stem}.{ext}" for stem in stems for ext in ("wav", "mp3")]
+    with tempfile.TemporaryDirectory(dir=AUD) as tmp:
+        staging = Path(tmp)
+        with tarfile.open(archive) as tf:
+            members = [tf.getmember(name) for name in names]
+            if any(not member.isfile() or not member.size for member in members):
+                raise ValueError(f"配音包包含无效音频：{archive}")
+            tf.extractall(staging, members=members, filter="data")
+        for name in names:
+            dst = AUD / name
+            if retake and dst.stem == "liang_8j_b" and dst.exists():
+                backup = AUD / "_v1" / name
+                backup.parent.mkdir(exist_ok=True)
+                try:
+                    backup.hardlink_to(dst)
+                except FileExistsError:
+                    pass  # 多次重配都保留首版
+            (staging / name).replace(dst)
 
 
 if __name__ == "__main__":

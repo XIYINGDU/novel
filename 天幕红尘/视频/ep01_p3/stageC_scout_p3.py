@@ -180,28 +180,39 @@ def main():
         if wait:
             print(f"[scout] 关键帧未就绪，本轮跳过：{wait}")
         print(f"[scout] {len(todo)} 条（共 {len(jobs())}），{n} 台")
+        if not todo:
+            return
         with ColabPool(n=n, setup=wan.setup, seg="p3", stage="scout") as pool:
             res, failed = pool.run(todo, lambda w, j: wan.render(w, j, wan.SCOUT, SCOUT_DIR, "p3s"))
         for p in res.values():
             sheet(p)
         hooks.after_render("p3", "01", "scout", list(res.values()), tags())
         print(f"[scout] 完成 {len(res)}，失败 {failed or '无'}；接触表 → {SHEETS}")
+        if failed:
+            raise SystemExit(1)
     elif "--hd" in sys.argv:
         plan = json.loads((HERE / "hd_plan.json").read_text())
-        by = {j[0]: j for j in jobs()}
+        by = {j[0]: j for j in jobs() + redo_jobs()}
         todo = [by[p["id"]] for p in plan if not (HD_DIR / f"clip_{p['id']}.mp4").exists()]
+        if not todo:
+            print("[hd] 计划内镜头均已生成")
+            return
         with ColabPool(n=n, setup=wan.setup, seg="p3", stage="hd") as pool:
             res, failed = pool.run(todo, lambda w, j: wan.render(w, j, wan.HD, HD_DIR, "p3hd"))
         hooks.after_render("p3", "01", "hd", list(res.values()), tags())
         print(f"[hd] 完成 {len(res)}，失败 {failed or '无'}")
+        if failed:
+            raise SystemExit(1)
     elif "--redo" in sys.argv or "--cont" in sys.argv:
         todo = [j for j in redo_jobs() if not (HD_DIR / f"clip_{j[0]}.mp4").exists()] if "--redo" in sys.argv else []
         do_cont = "--cont" in sys.argv
         first, wait = cont_ready() if do_cont else ([], [])
         print(f"[redo] {[j[0] for j in todo]}\n[cont] 本轮 {[j[0] for j in first]}；等上游 {wait}")
         done, fails = [], {}
+        batch = todo + first
+        if not batch:
+            return
         with ColabPool(n=n, setup=wan.setup, seg="p3", stage="hd_cont") as pool:
-            batch = todo + first
             while batch:
                 res, failed = pool.run(batch, lambda w, j: wan.render(w, j, wan.HD, HD_DIR, "p3hd"))
                 done += list(res.values())
@@ -216,6 +227,8 @@ def main():
             sheet(p)
         hooks.after_render("p3", "01", "hd", done, tags())
         print(f"[redo/cont] 完成 {len(done)}，失败 {fails or '无'}；仍在等上游 {wait}；接触表 → {SHEETS}")
+        if fails:
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

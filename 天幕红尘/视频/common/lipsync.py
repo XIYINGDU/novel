@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import tarfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from colab_pool import ColabPool  # noqa: E402
+from lipsync_cache import upload_sources, publish_archive
 from remote_job import run_remote  # noqa: E402
 
 
@@ -27,7 +29,8 @@ def shard(items: list[str], n: int) -> list[list[str]]:
     return [s for s in out if s]
 
 
-def run_lipsync(seg_dir: Path, n: int = 1, only: set[str] | None = None, seg_tag: str | None = None) -> dict:
+def run_lipsync(seg_dir: Path, n: int = 1, only: set[str] | None = None, seg_tag: str | None = None,
+                *, merged: bool = False) -> dict:
     seg_dir = Path(seg_dir)
     ls_in, ls_out = seg_dir / "lipsync_in", seg_dir / "lipsync_out"
     ls_out.mkdir(parents=True, exist_ok=True)
@@ -44,32 +47,33 @@ def run_lipsync(seg_dir: Path, n: int = 1, only: set[str] | None = None, seg_tag
     shards = shard(sids, max(1, min(n_shards, len(sids))))
     tmp = seg_dir / "lipsync_shards"
     tmp.mkdir(exist_ok=True)
-    jobs = []
-    for k, ss in enumerate(shards):
-        tar_p = tmp / f"in_{k}.tar.gz"
-        with tarfile.open(tar_p, "w:gz") as tf:
-            for sid in ss:
-                tf.add(ls_in / f"vid_{sid}.mp4", arcname=f"vid_{sid}.mp4")
-                tf.add(ls_in / f"stem_{sid}.wav", arcname=f"stem_{sid}.wav")
-        jp = tmp / f"job_{k}.json"
-        jp.write_text(json.dumps({**base_job, "in": "/content/lipsync_in.tar.gz", "out": "/content/lipsync_out.tar.gz"},
-                                 ensure_ascii=False), encoding="utf-8")
-        jobs.append((k, ss, tar_p, jp))
-    print(f"[lipsync] {len(sids)} 镜 → {len(shards)} 台：{[j[1] for j in jobs]}", flush=True)
+    with tempfile.TemporaryDirectory(dir=tmp) as td:
+        tmp = Path(td)
+        jobs = []
+        for k, ss in enumerate(shards):
+            tar_p = tmp / f"in_{k}.tar.gz"
+            with tarfile.open(tar_p, "w:gz") as tf:
+                for sid in ss:
+                    tf.add(ls_in / f"vid_{sid}.mp4", arcname=f"vid_{sid}.mp4")
+                    tf.add(ls_in / f"stem_{sid}.wav", arcname=f"stem_{sid}.wav")
+            jp = tmp / f"job_{k}.json"
+            jp.write_text(json.dumps({**base_job, "in": "/content/lipsync_in.tar.gz", "out": "/content/lipsync_out.tar.gz"},
+                                     ensure_ascii=False), encoding="utf-8")
+            jobs.append((k, ss, tar_p, jp, upload_sources(tar_p, ls_in, ss, merged=merged)))
+        print(f"[lipsync] {len(sids)} 镜 → {len(shards)} 台：{[j[1] for j in jobs]}", flush=True)
 
-    def work(w, job):
-        k, ss, tar_p, jp = job
-        out_local = tmp / f"out_{k}.tar.gz"
-        run_remote(w, HERE / "remote_latentsync.py",
-                   {tar_p: "/content/lipsync_in.tar.gz", jp: "/content/lipsync_job.json"},
-                   "/content/lipsync_out.tar.gz", out_local, timeout_s=600 + 150 * len(ss), tag="lipsync")
-        with tarfile.open(out_local, "r:gz") as tf:
-            tf.extractall(ls_out)
-        return ss
+        def work(w, job):
+            k, ss, tar_p, jp, sources = job
+            out_local = tmp / f"out_{k}.tar.gz"
+            run_remote(w, HERE / "remote_latentsync.py",
+                       {tar_p: "/content/lipsync_in.tar.gz", jp: "/content/lipsync_job.json"},
+                       "/content/lipsync_out.tar.gz", out_local, timeout_s=600 + 150 * len(ss), tag="lipsync")
+            publish_archive(out_local, ls_out, sources)
+            return ss
 
-    tag = seg_tag or seg_dir.name.removeprefix("ep01_")
-    with ColabPool(n=min(n, len(shards)), seg=tag, stage="lipsync") as pool:
-        res, failed = pool.run(jobs, work, key=lambda j: f"shard{j[0]}")
+        tag = seg_tag or seg_dir.name.removeprefix("ep01_")
+        with ColabPool(n=min(n, len(shards)), seg=tag, stage="lipsync") as pool:
+            res, failed = pool.run(jobs, work, key=lambda j: f"shard{j[0]}")
     got = sorted(p.stem.removeprefix("sync_") for p in ls_out.glob("sync_*.mp4"))
     print(f"[lipsync] 完成 {sum(len(v) for v in res.values())} 镜；失败分片 {failed or '无'}；lipsync_out 现有 {len(got)} 条", flush=True)
     return {"ok": res, "failed": failed}

@@ -222,7 +222,9 @@ def cmd_auth_status():
 
     try:
         info = state.client.get_consumption_user_info()
-        local_sessions, assignments = _safe_sync_sessions()
+        # 关机核验依赖这份清单。查询失败必须走下方的错误响应。
+        assignments = state.client.list_assignments()
+        local_sessions = state.store.list()
         name_by_ep = {s.endpoint: s.name for s in local_sessions.values()}
         sess_list = []
         for a in assignments:
@@ -366,10 +368,11 @@ def cmd_stop(session: str):  # MULTI: 只释放一台
         except Exception:
             pass
         state.client.unassign(s.endpoint)
-        state.store.remove(s.name)
+        # 后端仍可能列出刚关闭的实例。保留名称与 endpoint 的映射，
+        # 下一次 sync_sessions 确认它已消失后会自动清理本地登记。
         info = state.client.get_consumption_user_info()
         print(json.dumps({
-            "ok": True, "stopped": session,
+            "ok": True, "stopped": session, "endpoint": s.endpoint,
             "paid_balance": round(float(info.paid_compute_units_balance), 2),
             "burn_rate_hourly": round(float(info.consumption_rate_hourly), 2),
             "active_assignments": int(info.assignments_count),

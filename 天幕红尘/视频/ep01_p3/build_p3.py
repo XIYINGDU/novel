@@ -313,7 +313,7 @@ def build_spec(fast: bool):
     shots, events = build_timeline()
     total_ms = int(round(shots[-1]["t1"] * 1000)) + 50
     beds = {loc: room_bed(loc, total_ms) for loc in {s["loc"] for s in shots}}
-    book = sb.ShotBook(SEG)
+    book = sb.ShotBook(SEG, fast)
     missing_all: dict[str, list[str]] = {}
     lsjob = {"roi": {}, "guidance": {}, "default_g": DEFAULT_G, "steps": 20}
 
@@ -406,6 +406,11 @@ def prepare(fast: bool = False):
 
 def assemble(fast: bool = False):
     specs = json.loads(meta_path(fast).read_text(encoding="utf-8"))
+    if fast and any("mix_sha256" not in s for s in specs):
+        # Older fast manifests shared master WAV paths and may describe a previous edit.
+        _, book, _, _ = build_spec(True)
+        specs = book.specs
+        meta_path(True).write_text(json.dumps(specs, ensure_ascii=False, indent=2), encoding="utf-8")
     out = sb.assemble(SEG, specs, P3_FINAL_MP4, fast_mode=fast, combine_with=PREV_SEGS, combined_mp4=COMBINED_MP4,
                       target_lufs=-19.2)
     if not fast:

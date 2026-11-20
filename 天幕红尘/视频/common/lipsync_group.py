@@ -25,12 +25,15 @@ from __future__ import annotations
 import filecmp
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+from lipsync_cache import input_key, matches_output, read_stamp, record_output
+
 FPS = 25
 UP_CRF = "18"  # 上传件：与 segbuild 的 ls_in 同档（crf12 会大 6 倍，Colab 上传 >12MB 易 408）
 OUT_CRF = "12"
@@ -98,7 +101,7 @@ class Publisher:
     def tmp(self, pid: str) -> Path:
         return self.out / f"sync_{pid}.tmp.mp4"
 
-    def publish(self, pid: str, want: int):
+    def publish(self, pid: str, want: int, source: str | None):
         tmp, dst = self.tmp(pid), self.out / f"sync_{pid}.mp4"
         got = nframes(tmp)
         if got != want:
@@ -107,6 +110,11 @@ class Publisher:
         if dst.exists() and dst.name not in self.generated and not (self.bak / dst.name).exists():
             dst.rename(self.bak / dst.name)
         tmp.replace(dst)
+        if source:
+            record_output(dst, source)
+        else:
+            dst.with_suffix(".sha256").unlink(missing_ok=True)
+        dst.with_suffix(".prekeep.sha256").unlink(missing_ok=True)
         (self.out / f"sync_{pid}.prekeep.mp4").unlink(missing_ok=True)  # 新口型作废旧的 keep 底稿
         self.generated.add(dst.name)
         self.log.write_text(json.dumps(sorted(self.generated), ensure_ascii=False, indent=1))
@@ -137,13 +145,17 @@ def merge(seg: Path, groups: list[str], zooms: dict[str, tuple[int, int, int]]):
         if s <= 0 or x < 0 or y < 0 or x + s > w or y + s > h or x % 2 or y % 2 or s % 2:
             raise SystemExit(f"[merge] {sid} 框 {s}@({x},{y}) 越界或非偶数（画面 {w}x{h}）")
 
+    for pid in grouped | set(zooms):
+        if not read_stamp(src_in / f"vid_{pid}.mp4"):
+            raise SystemExit(f"[merge] {pid} 的旧口型输入缺少来源记录，请先重新 prepare")
+    sources = {pid: input_key(src_in, pid) for pid in sorted(grouped | set(zooms))}
     g = seg / "ls_group"
     gin, gout = g / "lipsync_in", g / "lipsync_out"
     for d in (gin, gout):
         d.mkdir(parents=True, exist_ok=True)
         for p in d.glob("*"):
             p.unlink()
-    plan = {"groups": {}, "zoom": {}}
+    plan = {"groups": {}, "zoom": {}, "sources": sources}
     gjob = {"roi": {}, "guidance": {}, "default_g": job["default_g"], "steps": job["steps"]}
     for gid, info in plan_groups.items():
         ps, counts, n = info["pieces"], info["counts"], len(info["pieces"])
@@ -182,7 +194,12 @@ def merge(seg: Path, groups: list[str], zooms: dict[str, tuple[int, int, int]]):
 
 def run(seg: Path, n: int):
     from lipsync import run_lipsync
-    r = run_lipsync(seg / "ls_group", n=n, seg_tag=seg.name.removeprefix("ep01_"))
+    plan = json.loads((seg / "ls_group" / "group_plan.json").read_text())
+    if not plan.get("sources"):
+        raise SystemExit("[run] 整镜口型输入缺少来源记录，请先 prepare、merge")
+    if any(input_key(seg / "lipsync_in", pid) != source for pid, source in plan["sources"].items()):
+        raise SystemExit("[run] 口型输入已更换，请重新 merge")
+    r = run_lipsync(seg / "ls_group", n=n, seg_tag=seg.name.removeprefix("ep01_"), merged=True)
     bad = fallback_copies(seg / "ls_group")
     if bad:
         print(f"[run] 远端推理失败、拷回了原片：{bad}", flush=True)
@@ -221,6 +238,14 @@ def split(seg: Path):
     # 预检：全部到齐、帧数够、不是兜底原片，否则一片都不动
     need = {gid: sum(i["counts"]) for gid, i in plan["groups"].items()} | {z: i["count"] for z, i in plan["zoom"].items()}
     errs = []
+    sources = plan.get("sources", {})
+    target_ids = {pid for info in plan["groups"].values() for pid in info["pieces"]}
+    target_ids.update(info["sid"] for info in plan["zoom"].values())
+    if not sources and any(read_stamp(src_in / f"vid_{pid}.mp4") for pid in target_ids):
+        raise SystemExit("[split] 旧分组与新准备的输入无法核对，请重新 merge")
+    for pid, source in sources.items():
+        if input_key(src_in, pid) != source:
+            errs.append(f"{pid} 的源片或干声已在 merge 后更换，请重新合并")
     fb = set(fallback_copies(g))
     for gid, want in need.items():
         sync = g / "lipsync_out" / f"sync_{gid}.mp4"
@@ -228,6 +253,8 @@ def split(seg: Path):
             errs.append(f"缺 {sync.name}")
         elif sync.name in fb:
             errs.append(f"{sync.name} 是远端兜底拷回的原片")
+        elif sources and not matches_output(sync, input_key(g / "lipsync_in", gid)):
+            errs.append(f"{sync.name} 与合并后的口型输入不符")
         elif (got := nframes(sync)) < want:
             errs.append(f"{sync.name} 只有 {got}f < {want}f")
     if errs:
@@ -239,14 +266,14 @@ def split(seg: Path):
         for pid, c in zip(info["pieces"], info["counts"]):
             ff("-i", str(sync), "-vf", f"trim=start_frame={a}:end_frame={a + c},setpts=PTS-STARTPTS", "-an",
                "-r", str(FPS), "-c:v", "libx264", "-crf", OUT_CRF, "-pix_fmt", "yuv420p", str(pub.tmp(pid)))
-            pub.publish(pid, c)
+            pub.publish(pid, c, sources.get(pid))
             a += c
         print(f"[split] {gid} → {info['pieces']}（输出 {nframes(sync)}f / 输入 {a}f）", flush=True)
     for zid, info in plan["zoom"].items():
         sid = info["sid"]
         paste_zoom(src_in / f"vid_{sid}.mp4", g / "lipsync_out" / f"sync_{zid}.mp4", info["box"], info["count"],
                    pub.tmp(sid))
-        pub.publish(sid, info["count"])
+        pub.publish(sid, info["count"], sources.get(sid))
         print(f"[split] {zid} → sync_{sid}.mp4（贴回 {info['box'][2]}px@({info['box'][0]},{info['box'][1]})）", flush=True)
 
 
@@ -261,8 +288,17 @@ def keep(seg: Path, sid: str, upto: int, xf: int = 5):
     n = nframes(src)
     if not 0 <= upto < n:
         raise SystemExit(f"[keep] {sid}: upto={upto} 不在 0..{n - 1}")
+    source = input_key(seg / "lipsync_in", sid)
+    base = pre if pre.exists() else out
+    stamped = bool(read_stamp(base))
+    if pre.exists() and not stamped and read_stamp(out):
+        raise SystemExit(f"[keep] {sid} 的旧底稿与当前口型无法核对，请重新 split")
+    if stamped and not matches_output(base, source):
+        raise SystemExit(f"[keep] {sid} 的口型与当前输入不符")
     if not pre.exists():
-        out.rename(pre)
+        shutil.copyfile(out, pre)
+        if stamped:
+            record_output(pre, source)
     tmp = out.with_suffix(".tmp.mp4")
     a, b = upto, upto + xf
     ff("-i", str(src), "-i", str(pre), "-filter_complex",
@@ -271,6 +307,10 @@ def keep(seg: Path, sid: str, upto: int, xf: int = 5):
        "-map", "[v]", "-frames:v", str(n), "-r", str(FPS), "-c:v", "libx264", "-crf", OUT_CRF,
        "-pix_fmt", "yuv420p", str(tmp))
     tmp.replace(out)
+    if stamped:
+        record_output(out, source)
+    else:
+        out.with_suffix(".sha256").unlink(missing_ok=True)
     print(f"[keep] {sid}: 前 {a} 帧原画，之后 {xf} 帧过渡到口型（底稿 {pre.name}）", flush=True)
 
 

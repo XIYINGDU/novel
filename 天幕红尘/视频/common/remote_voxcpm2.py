@@ -37,6 +37,7 @@ def mp3(wav_path):
 
 
 refs = dict(job.get("refs", {}))
+outputs = []
 for key, (ctrl, txt, seed) in job["actors"].items():
     if key in refs:
         continue
@@ -45,7 +46,7 @@ for key, (ctrl, txt, seed) in job["actors"].items():
     wav = model.generate(text=f"({ctrl}){txt}", cfg_value=2.0, inference_timesteps=20, normalize=False, denoise=False)
     p = os.path.join(OUT, f"actor_{key}.wav")
     sf.write(p, wav, sr)
-    mp3(p)
+    outputs.extend((p, mp3(p)))
     refs[key] = p
     print(f"[actor] {key} seed={seed} {len(wav) / sr:.2f}s", flush=True)
 
@@ -56,10 +57,10 @@ for fname, actor, ctrl, txt, seed in job["lines"]:
                          normalize=False, denoise=False)
     p = os.path.join(OUT, f"{fname}.wav")
     sf.write(p, wav, sr)
-    mp3(p)
+    outputs.extend((p, mp3(p)))
     print(f"[line] {fname} {len(wav) / sr:.2f}s", flush=True)
 
 with tarfile.open(job["out"], "w:gz") as tf:
-    for fn in sorted(os.listdir(OUT)):
-        tf.add(os.path.join(OUT, fn), arcname=fn)  # wav（给 LatentSync）+ mp3（试听）
+    for path in outputs:
+        tf.add(path, arcname=os.path.basename(path))  # wav（给 LatentSync）+ mp3（试听）
 print("VOX_DONE", flush=True)

@@ -53,26 +53,39 @@ def download(url: str, dst: Path, retries: int = 5):
     raise last
 
 
+def _wait_model(url: str, ready: str, busy: str, timeout: int) -> dict:
+    deadline = time.monotonic() + timeout
+    idle_since = None
+    while time.monotonic() < deadline:
+        time.sleep(4)
+        st = http_json(url)
+        if st.get(busy):
+            idle_since = None
+        elif st.get(ready):
+            return st
+        else:
+            # 服务异步启动任务，磁盘状态缓存最多 12 秒。
+            now = time.monotonic()
+            if idle_since is None:
+                idle_since = now
+            elif now - idle_since >= 16:
+                raise RuntimeError(f"Qwen {ready} 未就绪，任务已停止：{st.get('task_message')}")
+    raise TimeoutError(f"等待 Qwen {ready} 超过 {timeout} 秒")
+
+
 def setup(w):
     """下载并加载 Qwen-Image-2.1 到这台机器。"""
     base = w.base_gradio
-    st = http_json(f"{base}/minimax_api/status?model_id={MODEL}")
+    status_url = f"{base}/minimax_api/status?model_id={MODEL}"
+    st = http_json(status_url)
     if not st.get("all_downloaded"):
         w.log("下载 Qwen 权重 ...")
         http_json(f"{base}/minimax_api/download_model", {"model_id": MODEL})
-        while True:
-            time.sleep(5.0)
-            st = http_json(f"{base}/minimax_api/status?model_id={MODEL}")
-            if st.get("all_downloaded") and not st.get("is_downloading"):
-                break
+        st = _wait_model(status_url, "all_downloaded", "is_downloading", timeout=1800)
     if not st.get("model_loaded"):
         w.log("加载 Qwen 到显存 ...")
         http_json(f"{base}/minimax_api/load_model", {"model_id": MODEL, "precision_mode": "bf16", "offload_mode": "disk"})
-        while True:
-            time.sleep(4.0)
-            st = http_json(f"{base}/minimax_api/status?model_id={MODEL}")
-            if st.get("model_loaded") and not st.get("is_loading_vram"):
-                break
+        _wait_model(status_url, "model_loaded", "is_loading_vram", timeout=900)
     w.ctx["b64"] = {}
     w.log("Qwen 就绪")
 

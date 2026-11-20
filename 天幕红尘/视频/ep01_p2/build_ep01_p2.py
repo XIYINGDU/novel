@@ -116,9 +116,9 @@ draw_corner_stamp = sb.draw_corner_stamp
 find_split_pause_ms = sb.find_split_pause_ms
 
 
-def build_p2_spec() -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
+def build_p2_spec(fast_mode: bool = False) -> tuple[list[dict], list[tuple[str, AudioSegment]]]:
     """Assemble exact 15-shot spec & audio stems matching Scenes 1-5 & 1-6 verbatim."""
-    book = sb.ShotBook(SEG)
+    book = sb.ShotBook(SEG, fast_mode)
     specs, ls_stems, add_shot = book.specs, book.ls_stems, book.add
 
     # Shot 14: Hui listens on phone -> turns horrified (kug_15_panic_en_t2 = 4.48s)
@@ -346,9 +346,13 @@ def resolve_p2_clip(clip_base: str, fast_mode: bool) -> Path:
     return sb.resolve_clip(SEG, clip_base, fast_mode)
 
 
+def p2_meta_path(fast_mode: bool) -> Path:
+    return META_PATH.with_stem("audio_meta_p2_fast") if fast_mode else META_PATH
+
+
 def prepare(fast_mode: bool = False):
-    specs, ls_stems = build_p2_spec()
-    sb.prepare(SEG, specs, ls_stems, META_PATH, fast_mode=fast_mode)
+    specs, ls_stems = build_p2_spec(fast_mode)
+    sb.prepare(SEG, specs, ls_stems, p2_meta_path(fast_mode), fast_mode=fast_mode)
 
 
 def render_p2_shot_frames(s: dict, fast_mode: bool) -> list[np.ndarray]:
@@ -359,7 +363,12 @@ file_sha256 = sb.file_sha256
 
 
 def assemble(fast_mode: bool = False):
-    specs = json.loads(META_PATH.read_text(encoding="utf-8"))
+    meta = p2_meta_path(fast_mode)
+    if fast_mode and not meta.exists():
+        specs, _ = build_p2_spec(True)
+        meta.write_text(json.dumps(specs, ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        specs = json.loads(meta.read_text(encoding="utf-8"))
     sb.assemble(SEG, specs, P2_FINAL_MP4, fast_mode=fast_mode,  # 合片改由 p3 统一拼 p1+p2+p3
                 target_lufs=-19.2)  # A-MASTER-LOUDNESS：v2 为 -15.1，比 p1/p3 响 4 LU（defects loudness_mismatch）
 

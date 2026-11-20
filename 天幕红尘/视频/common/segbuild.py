@@ -10,18 +10,20 @@
 """
 from __future__ import annotations
 
-import hashlib
+import io
 import json
 import os
 import subprocess
 import sys
 import tarfile
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 os.environ["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", "")
 
 import numpy as np  # noqa: E402
+from lipsync_cache import stream_sha256, file_sha256, fingerprint, matches_output, read_stamp, record_output, write_stamp
 from PIL import Image, ImageDraw  # noqa: E402
 from pydub import AudioSegment  # noqa: E402
 
@@ -87,10 +89,12 @@ def find_split_pause_ms(seg: AudioSegment, lo_ratio: float = 0.40, hi_ratio: flo
 
 
 class ShotBook:
-    """逐镜登记：写 audio_mix/shot_<id>.wav，收集 spec 和口型 stem。"""
+    """逐镜登记：按模式和内容保存混音，收集时间线和口型干声。"""
 
-    def __init__(self, seg: Seg):
+    def __init__(self, seg: Seg, fast_mode: bool = False):
         self.seg = seg
+        self.mix_dir = seg.mix_dir / ("fast" if fast_mode else "master")
+        self.mix_dir.mkdir(exist_ok=True)
         self.specs: list[dict] = []
         self.ls_stems: list[tuple[str, AudioSegment]] = []
 
@@ -104,13 +108,40 @@ class ShotBook:
         elif len(mix) > total_ms:
             mix = mix[:total_ms]
         mix = mix.fade_in(10).fade_out(14)
-        mix.export(self.seg.mix_dir / f"shot_{sid}.wav", format="wav")
+        with tempfile.TemporaryDirectory(dir=self.mix_dir) as temp:
+            tmp = Path(temp) / f"shot_{sid}.wav"
+            mix.export(tmp, format="wav").close()
+            mix_hash = file_sha256(tmp)
+            tmp.replace(self.mix_dir / f"shot_{sid}_{mix_hash}.wav")
+        stem_hash = None
         if ls_stem is not None:
             stem_ms = int(round((ls_dur if ls_dur is not None else dur) * 1000))
             st = ls_stem[:stem_ms] if len(ls_stem) >= stem_ms else (ls_stem + AudioSegment.silent(stem_ms - len(ls_stem), frame_rate=SR))
             self.ls_stems.append((sid, st))
+            stem_hash = fingerprint_stem(st, ls_dur if ls_dur is not None else dur)
         self.specs.append({"id": sid, "dur": dur, "clip": clip_name, "curve": curve, "subs": subs,
+                           "mix_sha256": mix_hash, "stem_sha256": stem_hash,
                            "lipsync_dur_sec": ls_dur, "stamp": stamp, "fade_in": fade_in, "fade_out": fade_out, **(extra or {})})
+
+
+def stem_for_video(stem: AudioSegment, duration: float) -> AudioSegment:
+    n_frames = max(1, round(duration * FPS_LIPSYNC))
+    return stem[:int(n_frames * 1000 / FPS_LIPSYNC)]
+
+
+def fingerprint_stem(stem: AudioSegment, duration: float) -> str:
+    wav = stem_for_video(stem, duration).export(io.BytesIO(), format="wav")
+    return stream_sha256(wav)
+
+
+def sync_source(spec, clip_sha, stem_sha):
+    return fingerprint([clip_sha, spec["curve"], spec["lipsync_dur_sec"], FPS_LIPSYNC, stem_sha])
+
+
+def legacy_render_hash(spec, mode, clip_sha, wav_sha, ls_sha):
+    old_spec = {k: v for k, v in spec.items() if k not in ("mix_sha256", "stem_sha256")}
+    return fingerprint({"v": 1, "mode": mode, "spec": old_spec, "clip_sha": clip_sha,
+                        "wav_sha": wav_sha, "ls_sha": ls_sha})
 
 
 def resolve_clip(seg: Seg, clip_base: str, fast_mode: bool) -> Path:
@@ -131,37 +162,61 @@ def resolve_clip(seg: Seg, clip_base: str, fast_mode: bool) -> Path:
 def prepare(seg: Seg, specs: list[dict], ls_stems: list[tuple[str, AudioSegment]], meta_path: Path,
             fast_mode: bool = False) -> Path:
     print(f"[prepare {seg.tag}] Mixing shot WAVs & preparing 25fps LatentSync inputs...", flush=True)
-    meta_path.write_text(json.dumps(specs, ensure_ascii=False, indent=2), encoding="utf-8")
     stems_map = dict(ls_stems)
     rife = bv13.get_rife()
-    for p in seg.ls_in.glob("*"):
-        p.unlink()
-    packed: list[Path] = []
-    for s in specs:
-        sid = s["id"]
-        if s["lipsync_dur_sec"] is None:
-            continue
-        clip_p = resolve_clip(seg, s["clip"], fast_mode=fast_mode)
-        raw_frames = bv13.decode_video_frames(clip_p)
-        ls_dur = float(s["lipsync_dur_sec"])
-        n25 = max(1, int(round(ls_dur * FPS_LIPSYNC)))
-        pos25 = [bv13.eval_curve(k / FPS_LIPSYNC, s["curve"]) for k in range(n25)]
-        frames25 = rife.render_positions(raw_frames, pos25)
-        vid_out = seg.ls_in / f"vid_{sid}.mp4"
-        bv13.encode_mp4_no_audio(frames25, vid_out, FPS_LIPSYNC)
-        wav_out = seg.ls_in / f"stem_{sid}.wav"
-        stems_map[sid][: int(n25 * 1000 / FPS_LIPSYNC)].export(wav_out, format="wav")
-        packed.extend([vid_out, wav_out])
-        print(f"  [ls_in] {sid}: {n25}f @ 25fps ({ls_dur:.2f}s) from {clip_p.name}", flush=True)
-    tar_p = seg.root / "lipsync_in.tar.gz"
-    with tarfile.open(tar_p, "w:gz") as tf:
-        for p in packed:
-            tf.add(p, arcname=p.name)
+    mode = "fast" if fast_mode else "master"
+    with tempfile.TemporaryDirectory(dir=seg.root) as temp:
+        staging = Path(temp)
+        packed: list[Path] = []
+        for s in specs:
+            sid = s["id"]
+            if s["lipsync_dur_sec"] is None:
+                continue
+            clip_p = resolve_clip(seg, s["clip"], fast_mode)
+            clip_sha = file_sha256(clip_p)
+            raw_frames = bv13.decode_video_frames(clip_p)
+            if file_sha256(clip_p) != clip_sha:
+                raise ValueError(f"{sid} 源片在解码期间已更换，请重新 prepare")
+            ls_dur = float(s["lipsync_dur_sec"])
+            n25 = max(1, int(round(ls_dur * FPS_LIPSYNC)))
+            pos25 = [bv13.eval_curve(k / FPS_LIPSYNC, s["curve"]) for k in range(n25)]
+            frames25 = rife.render_positions(raw_frames, pos25)
+            vid_out = staging / f"vid_{sid}.mp4"
+            bv13.encode_mp4_no_audio(frames25, vid_out, FPS_LIPSYNC)
+            wav_out = staging / f"stem_{sid}.wav"
+            stem_for_video(stems_map[sid], ls_dur).export(wav_out, format="wav").close()
+            video_sha, stem_sha = file_sha256(vid_out), file_sha256(wav_out)
+            source = sync_source(s, clip_sha, stem_sha)
+            write_stamp(vid_out, {"source": source, "video": video_sha, "stem": stem_sha})
+            s["stem_sha256"] = stem_sha
+            # Adopt an old output only when both the actual old inputs and the rendered shot agree.
+            sync = seg.ls_out / f"sync_{sid}.mp4"
+            old_video, old_stem = seg.ls_in / vid_out.name, seg.ls_in / wav_out.name
+            stamp = seg.shot_dir / f"seg_{mode}_{sid}.sha256"
+            if (sync.exists() and not read_stamp(sync) and stamp.exists() and "mix_sha256" in s
+                    and old_video.exists() and not read_stamp(old_video) and old_stem.exists()
+                    and file_sha256(old_video) == video_sha and file_sha256(old_stem) == stem_sha
+                    and stamp.read_text().strip() == legacy_render_hash(
+                        s, mode, clip_sha, s["mix_sha256"], file_sha256(sync))):
+                record_output(sync, source)
+            packed.extend([vid_out, wav_out])
+            print(f"  [ls_in] {sid}: {n25}f @ 25fps ({ls_dur:.2f}s) from {clip_p.name}", flush=True)
+        tar_p = seg.root / "lipsync_in.tar.gz"
+        with tarfile.open(staging / tar_p.name, "w:gz") as tf:
+            for piece in packed:
+                tf.add(piece, arcname=piece.name)
+        for old in seg.ls_in.iterdir():
+            if not (staging / old.name).exists():
+                old.unlink()
+        (staging / tar_p.name).replace(tar_p)
+        for piece in staging.iterdir():
+            piece.replace(seg.ls_in / piece.name)
+    meta_path.write_text(json.dumps(specs, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[prepare OK] {len(specs)} shots, {len(stems_map)} LatentSync bundles -> {tar_p} ({tar_p.stat().st_size // 1024} KB)", flush=True)
     return tar_p
 
 
-def render_shot_frames(seg: Seg, s: dict, fast_mode: bool) -> list[np.ndarray]:
+def _render_shot_frames(seg: Seg, s: dict, fast_mode: bool, ls_mp4: Path | None) -> list[np.ndarray]:
     sid = s["id"]
     dur = float(s["dur"])
     n_frames = max(1, int(round(dur * FPS_FINAL)))
@@ -174,9 +229,8 @@ def render_shot_frames(seg: Seg, s: dict, fast_mode: bool) -> list[np.ndarray]:
     rgb_base = rife.render_positions(raw_frames, pos_base)
 
     ls_dur = s.get("lipsync_dur_sec")
-    ls_mp4 = seg.ls_out / f"sync_{sid}.mp4"
     frames_rgb: list[np.ndarray] = []
-    if ls_dur is not None and ls_mp4.exists():
+    if ls_mp4 is not None:
         ls_raw = bv13.decode_video_frames(ls_mp4)
         if s.get("ls_fit"):  # 口型片覆盖整片：首尾对齐拉满，避免尾帧被钳住→脸停一拍、接缝跳（p3 实测）
             pos_ls = [k * (len(ls_raw) - 1.0) / max(1, n_frames - 1) for k in range(n_frames)]
@@ -202,17 +256,49 @@ def render_shot_frames(seg: Seg, s: dict, fast_mode: bool) -> list[np.ndarray]:
                     frames_rgb.append((ls_clean * (1.0 - a) + rgb_base[k].astype(np.float32) * a).astype(np.uint8))
     else:
         if ls_dur is not None:
-            print(f"[WARN] Missing {ls_mp4}, using base RIFE clip for {sid}", flush=True)
+            print(f"[WARN] {sid} 缺少匹配的口型，使用原画", flush=True)
         frames_rgb = rgb_base
     return frames_rgb
 
 
-def file_sha256(p: Path) -> str:
-    h = hashlib.sha256()
-    with p.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+def shot_inputs(seg, spec, fast):
+    sid = spec["id"]
+    mode = "fast" if fast else "master"
+    expected_mix = spec.get("mix_sha256")
+    wav = (seg.mix_dir / mode / f"shot_{sid}_{expected_mix}.wav" if expected_mix
+           else seg.mix_dir / f"shot_{sid}.wav")
+    wav_sha = file_sha256(wav)
+    if expected_mix and wav_sha != expected_mix:
+        raise ValueError(f"{sid} {mode} 混音校验失败，请重新 prepare")
+    clip_sha = file_sha256(resolve_clip(seg, spec["clip"], fast))
+    sync = seg.ls_out / f"sync_{sid}.mp4"
+    use_sync = spec["lipsync_dur_sec"] is not None and sync.exists()
+    sync_sha = file_sha256(sync) if use_sync else ""
+    old_hash = legacy_render_hash(spec, mode, clip_sha, wav_sha, sync_sha)
+    stamp = seg.shot_dir / f"seg_{mode}_{sid}.sha256"
+    legacy_hit = stamp.exists() and stamp.read_text().strip() == old_hash
+    if not expected_mix and not legacy_hit:
+        raise ValueError(f"{sid} 的旧 {mode} 清单与素材不符，请为该模式重新 prepare")
+    if use_sync:
+        stem_sha = spec.get("stem_sha256")
+        legacy_stem = seg.ls_in / f"stem_{sid}.wav"
+        # A v1 render stamp binds this exact source, timeline, mixed audio and synced video.
+        # With new specs also verify the dry voice before reusing a legacy render.
+        proved_legacy = legacy_hit and (not stem_sha or (
+            not read_stamp(sync) and not read_stamp(seg.ls_in / f"vid_{sid}.mp4")
+            and legacy_stem.exists() and file_sha256(legacy_stem) == stem_sha))
+        if not proved_legacy and not matches_output(sync, sync_source(spec, clip_sha, stem_sha)):
+            if not fast:
+                raise ValueError(f"{sid} 口型与源片或干声不符，请重新 prepare 并生成该镜口型")
+            sync_sha = ""
+            use_sync = False
+    cache_hash = legacy_render_hash(spec, mode, clip_sha, wav_sha, sync_sha)
+    return wav, sync if use_sync else None, cache_hash
+
+
+def render_shot_frames(seg: Seg, s: dict, fast_mode: bool):
+    _, sync, _ = shot_inputs(seg, s, fast_mode)
+    return _render_shot_frames(seg, s, fast_mode, sync)
 
 
 def assemble(seg: Seg, specs: list[dict], final_mp4: Path, fast_mode: bool = False,
@@ -232,21 +318,13 @@ def assemble(seg: Seg, specs: list[dict], final_mp4: Path, fast_mode: bool = Fal
         dur = float(s["dur"])
         n_frames = max(1, int(round(dur * FPS_FINAL)))
         seg_dur = n_frames / float(FPS_FINAL)
-        wav_p = seg.mix_dir / f"shot_{sid}.wav"
+        wav_p, sync, expected_hash = shot_inputs(seg, s, fast_mode)
         out_seg = seg.shot_dir / f"seg_{mode_tag}_{sid}.mov"
         hash_p = seg.shot_dir / f"seg_{mode_tag}_{sid}.sha256"
-        clip_p = resolve_clip(seg, s["clip"], fast_mode=fast_mode)
-        ls_mp4 = seg.ls_out / f"sync_{sid}.mp4"
-        expected_hash = hashlib.sha256(json.dumps({
-            "v": 1, "mode": mode_tag, "spec": s, "clip_sha": file_sha256(clip_p),
-            "ls_sha": file_sha256(ls_mp4) if (s.get("lipsync_dur_sec") is not None and ls_mp4.exists()) else "",
-            "wav_sha": file_sha256(wav_p),
-        }, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
-
         if out_seg.exists() and hash_p.exists() and hash_p.read_text().strip() == expected_hash:
             print(f"[CACHE HIT | {mode_tag}] shot_{sid}", flush=True)
         else:
-            frames_rgb = render_shot_frames(seg, s, fast_mode=fast_mode)
+            frames_rgb = _render_shot_frames(seg, s, fast_mode, sync)
             cmd = [
                 "ffmpeg", "-y", "-v", "error",
                 "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS_FINAL), "-i", "-",
